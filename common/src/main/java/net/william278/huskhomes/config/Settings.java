@@ -416,11 +416,83 @@ public final class Settings {
         @Comment("Specify how many homes players can set for free, before they need to pay for more slots")
         private int freeHomeSlots = 5;
 
+        @Comment("Distance-based teleportation cost settings")
+        private DistanceBasedCostSettings distanceBasedCosts = new DistanceBasedCostSettings();
+
+        @Comment("Teleport confirmation settings")
+        private TeleportConfirmationSettings teleportConfirmations = new TeleportConfirmationSettings();
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor
+        public static class DistanceBasedCostSettings {
+
+            @Comment("Enable distance-based cost calculation for teleportation")
+            private boolean enabled = false;
+
+            @Comment("Cost per block traveled (in currency units)")
+            private double costPerBlock = 1.0;
+
+            @Comment("Additional flat fee for inter-dimensional teleportation")
+            private double interDimensionalFee = 50.0;
+
+            @Comment("Enable inter-dimensional fees (requires distance-based costs to be enabled)")
+            private boolean enableInterDimensionalFees = false;
+
+            @Comment("Minimum cost for teleportation (0 = no minimum)")
+            private double minimumCost = 0.0;
+
+            @Comment("Maximum cost for teleportation (0 = no maximum)")
+            private double maximumCost = 0.0;
+
+            @Comment("Use 3D distance calculation (includes Y-axis). If false, uses 2D distance (X-Z plane only)")
+            private boolean use3dDistance = false;
+
+            @Comment("List of teleport types that use distance-based costing")
+            private List<String> enabledForTypes = List.of("HOME_TELEPORT", "PUBLIC_HOME_TELEPORT", "WARP_TELEPORT", "SPAWN_TELEPORT", "SEND_TELEPORT_REQUEST", "ACCEPT_TELEPORT_REQUEST");
+        }
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor
+        public static class TeleportConfirmationSettings {
+
+            @Comment("Enable teleport confirmation prompts")
+            private boolean enabled = false;
+
+            @Comment("Show confirmation only when cost is greater than 0")
+            private boolean onlyWhenCharged = true;
+
+            @Comment("Show calculated cost in confirmation message")
+            private boolean showCost = true;
+
+            @Comment("Confirmation timeout in seconds (0 = no timeout)")
+            private int timeoutSeconds = 30;
+
+            @Comment("List of teleport types that require confirmation")
+            private List<String> enabledForTypes = List.of("HOME_TELEPORT", "PUBLIC_HOME_TELEPORT", "WARP_TELEPORT", "SPAWN_TELEPORT", "SEND_TELEPORT_REQUEST", "ACCEPT_TELEPORT_REQUEST");
+        }
+
         public Optional<Double> getCost(@NotNull TransactionResolver.Action action) {
             if (!enabled) {
                 return Optional.empty();
             }
             return economyCosts.containsKey(action) ? Optional.of(economyCosts.get(action)) : Optional.empty();
+        }
+
+        public boolean isDistanceBasedCostingEnabled(@NotNull TransactionResolver.Action action) {
+            return distanceBasedCosts.enabled &&
+                   distanceBasedCosts.enabledForTypes.contains(action.name());
+        }
+
+        public boolean isTeleportConfirmationEnabled(@NotNull TransactionResolver.Action action) {
+            return teleportConfirmations.enabled &&
+                   (!teleportConfirmations.onlyWhenCharged || hasDistanceBasedCost(action)) &&
+                   teleportConfirmations.enabledForTypes.contains(action.name());
+        }
+
+        private boolean hasDistanceBasedCost(@NotNull TransactionResolver.Action action) {
+            return isDistanceBasedCostingEnabled(action);
         }
     }
 
