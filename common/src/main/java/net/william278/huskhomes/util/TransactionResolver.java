@@ -22,7 +22,9 @@ package net.william278.huskhomes.util;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import net.william278.huskhomes.HuskHomes;
+import net.william278.huskhomes.config.Settings;
 import net.william278.huskhomes.hook.EconomyHook;
+import net.william278.huskhomes.position.Position;
 import net.william278.huskhomes.user.OnlineUser;
 import org.jetbrains.annotations.NotNull;
 
@@ -51,6 +53,21 @@ public interface TransactionResolver {
         return hasFunds(player, action) && isNotOnCooldown(player, action);
     }
 
+    /**
+     * Validates whether an {@link OnlineUser} can perform an {@link Action} with distance-based costing.
+     * This method will calculate the cost based on distance and validate if the user has sufficient funds.
+     *
+     * @param player the {@link OnlineUser player} to perform the check on
+     * @param action the {@link Action action} to perform
+     * @param fromPosition the starting position
+     * @param toPosition the destination position
+     * @return {@code true} if the action can be performed, {@code false} otherwise
+     */
+    default boolean validateTransaction(@NotNull OnlineUser player, @NotNull Action action,
+                                         @NotNull Position fromPosition, @NotNull Position toPosition) {
+        return hasFunds(player, action, fromPosition, toPosition) && isNotOnCooldown(player, action);
+    }
+
     // Validates if the user has funds to perform an action
     private boolean hasFunds(@NotNull OnlineUser player, @NotNull Action action) {
         return getPlugin().getSettings().getEconomy().getCost(action).map(Math::abs)
@@ -68,6 +85,32 @@ public interface TransactionResolver {
                         })
                         .orElse(true))
                 .orElse(true);
+    }
+
+    // Validates if the user has funds to perform an action with distance-based costing
+    private boolean hasFunds(@NotNull OnlineUser player, @NotNull Action action,
+                              @NotNull Position fromPosition, @NotNull Position toPosition) {
+        // Check if distance-based costing is enabled for this action
+        if (getPlugin().getSettings().getEconomy().isDistanceBasedCostingEnabled(action)) {
+            double calculatedCost = calculateDistanceBasedCost(action, fromPosition, toPosition);
+
+            return player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)
+                    ? true
+                    : getEconomyHook()
+                            .map(hook -> {
+                                if (hook.getPlayerBalance(player) < calculatedCost) {
+                                    getPlugin().getLocales().getLocale("error_insufficient_funds",
+                                                    hook.formatCurrency(calculatedCost))
+                                            .ifPresent(player::sendMessage);
+                                    return false;
+                                }
+                                return true;
+                            })
+                            .orElse(true);
+        } else {
+            // Fall back to static cost system
+            return hasFunds(player, action);
+        }
     }
 
     // Validates if the user is on cooldown for an action
@@ -137,6 +180,42 @@ public interface TransactionResolver {
 
     /**
      * Execute an economy transaction if needed, updating the player's balance.
+     * This method supports distance-based cost calculation.
+     *
+     * @param player the {@link OnlineUser player} to deduct the cost from if needed
+     * @param action the {@link Action action} to deduct the cost from if needed
+     * @param fromPosition the starting position
+     * @param toPosition the destination position
+     */
+    default void performTransaction(@NotNull OnlineUser player, @NotNull Action action,
+                                     @NotNull Position fromPosition, @NotNull Position toPosition) {
+        getEconomyHook().ifPresent(hook -> {
+            double cost;
+
+            // Use distance-based cost if enabled, otherwise use static cost
+            if (getPlugin().getSettings().getEconomy().isDistanceBasedCostingEnabled(action)) {
+                cost = calculateDistanceBasedCost(action, fromPosition, toPosition);
+            } else {
+                cost = getPlugin().getSettings().getEconomy().getCost(action).map(Math::abs)
+                        .flatMap(c -> player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)
+                                ? Optional.empty() : Optional.of(c))
+                        .orElse(0.0);
+            }
+
+            if (cost > 0 && !player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)) {
+                hook.changePlayerBalance(player, -cost);
+                hook.notifyDeducted(player, getPlugin(), action);
+            }
+        });
+
+        final long configCooldown = getPlugin().getSettings().getCooldowns().getCooldown(action);
+        if (configCooldown > 0 && !player.hasPermission(Action.BYPASS_COOLDOWNS_PERMISSION)) {
+            getPlugin().getDatabase().setCooldown(action, player, Instant.now().plusSeconds(configCooldown));
+        }
+    }
+
+    /**
+     * Execute an economy transaction if needed, updating the player's balance.
      *
      * @deprecated use {@link #performTransaction(OnlineUser, Action)} instead.
      */
@@ -175,6 +254,31 @@ public interface TransactionResolver {
      */
     default boolean isUsingEconomy() {
         return getPlugin().getSettings().getEconomy().isEnabled() && getEconomyHook().isPresent();
+    }
+
+    /**
+     * Calculate distance-based cost for an action.
+     *
+     * @param action        the action to calculate cost for
+     * @param fromPosition  the starting position
+     * @param toPosition    the destination position
+     * @return the calculated cost
+     */
+    default double calculateDistanceBasedCost(@NotNull Action action, @NotNull Position fromPosition, @NotNull Position toPosition) {
+        Settings.EconomySettings.DistanceBasedCostSettings distanceSettings = getPlugin().getSettings().getEconomy().getDistanceBasedCosts();
+
+        // Calculate distance
+        double distance = DistanceCalculator.calculateDistance(fromPosition, toPosition, distanceSettings.isUse3dDistance());
+
+        // Calculate total cost including inter-dimensional fees
+        return DistanceCalculator.calculateTotalCost(
+                distance,
+                distanceSettings.getCostPerBlock(),
+                distanceSettings.getInterDimensionalFee(),
+                distanceSettings.getMinimumCost(),
+                distanceSettings.getMaximumCost(),
+                distanceSettings.isEnableInterDimensionalFees()
+        );
     }
 
     @NotNull
