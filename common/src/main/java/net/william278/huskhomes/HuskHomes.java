@@ -261,4 +261,13 @@ public interface HuskHomes extends Task.Supplier, EventDispatcher, SavePositionP
         return Key.key("huskhomes", joined);
     }
 
+    /**
+     * Get the teleport confirmation handler.
+     *
+     * @return optional teleport confirmations handler
+     */
+    default Optional<TeleportConfirmations> getTeleportConfirmations() {
+        return Optional.empty();
+    }
+
 }
