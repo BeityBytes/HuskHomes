@@ -207,7 +207,8 @@ public interface TransactionResolver {
          * Teleport request actions
          */
         SEND_TELEPORT_REQUEST,
-        ACCEPT_TELEPORT_REQUEST;
+        ACCEPT_TELEPORT_REQUEST,
+        TPA_TELEPORT;
 
         public static final String BYPASS_ECONOMY_PERMISSION = "huskhomes.bypass_economy_checks";
         public static final String BYPASS_COOLDOWNS_PERMISSION = "huskhomes.bypass_cooldowns";

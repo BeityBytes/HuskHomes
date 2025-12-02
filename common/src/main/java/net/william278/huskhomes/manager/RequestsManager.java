@@ -338,6 +338,9 @@ public class RequestsManager {
                     builder.target(request.getRequesterName());
                 }
                 builder.buildAndComplete(true);
+
+                // Perform TPA_TELEPORT transaction after successful teleport
+                plugin.performTransaction(recipient, TransactionResolver.Action.TPA_TELEPORT);
             }
         }));
     }
@@ -368,6 +371,9 @@ public class RequestsManager {
                     .target(request.getRecipientName())
                     .actions(TransactionResolver.Action.ACCEPT_TELEPORT_REQUEST)
                     .buildAndComplete(true);
+
+            // Perform TPA_TELEPORT transaction after successful teleport
+            plugin.performTransaction(requester, TransactionResolver.Action.TPA_TELEPORT);
         }
     }
 
