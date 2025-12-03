@@ -438,16 +438,11 @@ public final class Settings {
         @NoArgsConstructor
         public static class StaticCostSettings {
 
-            @Comment("Enable static cost system")
-            private boolean enabled = true;
-
+            
             @Comment("Map of economy actions to static costs")
             private Map<TransactionResolver.Action, Double> economyCosts = TransactionResolver.Action.getEconomyCosts();
 
             public Optional<Double> getCost(@NotNull TransactionResolver.Action action) {
-                if (!enabled) {
-                    return Optional.empty();
-                }
                 return economyCosts.containsKey(action) ? Optional.of(economyCosts.get(action)) : Optional.empty();
             }
         }
@@ -457,16 +452,14 @@ public final class Settings {
         @NoArgsConstructor
         public static class DistanceBasedCostSettings {
 
-            @Comment("Enable distance-based cost calculation for teleportation")
-            private boolean enabled = false;
-
+            
             @Comment("Cost per block traveled (in currency units)")
             private double costPerBlock = 1.0;
 
             @Comment("Additional flat fee for inter-dimensional teleportation")
             private double interDimensionalFee = 50.0;
 
-            @Comment("Enable inter-dimensional fees (requires distance-based costs to be enabled)")
+            @Comment("Enable inter-dimensional fees")
             private boolean enableInterDimensionalFees = false;
 
             @Comment("Minimum cost for teleportation (0 = no minimum)")
@@ -511,8 +504,8 @@ public final class Settings {
                 return Optional.empty();
             }
 
-            // Return static cost if in STATIC mode and static costs are enabled
-            if (costMode == CostMode.STATIC && staticCosts.enabled) {
+            // Return static cost if in STATIC mode
+            if (costMode == CostMode.STATIC) {
                 return staticCosts.getCost(action);
             }
 
@@ -531,7 +524,6 @@ public final class Settings {
          */
         public boolean isDistanceBasedCostingEnabled(@NotNull TransactionResolver.Action action) {
             return costMode == CostMode.DYNAMIC &&
-                   distanceBasedCosts.enabled &&
                    distanceBasedCosts.enabledForTypes.contains(action.name());
         }
 
@@ -549,7 +541,7 @@ public final class Settings {
          */
         private boolean hasAnyCost(@NotNull TransactionResolver.Action action) {
             // Check for static cost
-            if (costMode == CostMode.STATIC && staticCosts.enabled) {
+            if (costMode == CostMode.STATIC) {
                 return staticCosts.getCost(action).map(cost -> cost > 0).orElse(false);
             }
 
@@ -566,14 +558,14 @@ public final class Settings {
          * Get whether static costs are enabled
          */
         public boolean isStaticCostEnabled() {
-            return costMode == CostMode.STATIC && staticCosts.enabled;
+            return costMode == CostMode.STATIC;
         }
 
         /**
          * Get whether dynamic costs are enabled
          */
         public boolean isDynamicCostEnabled() {
-            return costMode == CostMode.DYNAMIC && distanceBasedCosts.enabled;
+            return costMode == CostMode.DYNAMIC;
         }
     }
 
