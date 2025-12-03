@@ -531,7 +531,7 @@ public final class Settings {
          * Check if teleport confirmation is enabled for an action
          */
         public boolean isTeleportConfirmationEnabled(@NotNull TransactionResolver.Action action) {
-            return teleportConfirmations.enabled &&
+            return (teleportConfirmations.enabled || isDistanceBasedCostingEnabled(action)) &&
                    teleportConfirmations.enabledForTypes.contains(action.name()) &&
                    (!teleportConfirmations.onlyWhenCharged || hasAnyCost(action));
         }
