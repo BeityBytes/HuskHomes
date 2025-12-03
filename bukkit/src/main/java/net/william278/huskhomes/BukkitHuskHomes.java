@@ -140,7 +140,13 @@ public class BukkitHuskHomes extends JavaPlugin implements HuskHomes, BukkitTask
         this.morePaperLib = new MorePaperLib(this);
         this.toilet = BukkitToilet.create(getDumpOptions());
         this.enable();
-        // TEMPORARILY DISABLED: this.teleportConfirmations = new TeleportConfirmations(this);
+        // Initialize teleport confirmations after all dependencies are ready
+        try {
+            this.teleportConfirmations = new TeleportConfirmations(this);
+        } catch (Exception e) {
+            log(Level.WARNING, "Failed to initialize teleport confirmations: " + e.getMessage());
+            // Continue without confirmations if initialization fails
+        }
         this.loadCommands();
     }
 
