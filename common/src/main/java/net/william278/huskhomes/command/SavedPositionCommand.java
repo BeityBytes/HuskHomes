@@ -191,29 +191,34 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
         }
 
         // Handle economy-based teleport confirmation if needed
-        if (executor instanceof OnlineUser onlineExecutor &&
-            plugin.getSettings().getEconomy().isEnabled() &&
-            plugin.getTeleportConfirmations().map(teleportConfirmations ->
-                teleportConfirmations.requiresConfirmation(onlineExecutor, actions[0])).orElse(false) &&
-            teleporter instanceof OnlineUser onlineTeleporter) {
+        try {
+            if (executor instanceof OnlineUser onlineExecutor &&
+                plugin.getSettings().getEconomy().isEnabled() &&
+                plugin.getTeleportConfirmations().map(teleportConfirmations ->
+                    teleportConfirmations.requiresConfirmation(onlineExecutor, actions[0])).orElse(false) &&
+                teleporter instanceof OnlineUser onlineTeleporter) {
 
-            // Send confirmation prompt for dynamic or static costs
-            plugin.getTeleportConfirmations().ifPresent(teleportConfirmations -> {
-                teleportConfirmations.sendConfirmationPrompt(
-                        onlineExecutor,
-                        actions[0],
-                        onlineExecutor.getPosition(),
-                        position,
-                        () -> {
-                            Teleport.builder(plugin)
-                                    .teleporter(teleporter)
-                                    .actions(actions)
-                                    .target(position)
-                                    .buildAndComplete(executor.equals(teleporter), teleporter.getName());
-                        }
-                );
-            });
-            return;
+                // Send confirmation prompt for dynamic or static costs
+                plugin.getTeleportConfirmations().ifPresent(teleportConfirmations -> {
+                    teleportConfirmations.sendConfirmationPrompt(
+                            onlineExecutor,
+                            actions[0],
+                            onlineExecutor.getPosition(),
+                            position,
+                            () -> {
+                                Teleport.builder(plugin)
+                                        .teleporter(teleporter)
+                                        .actions(actions)
+                                        .target(position)
+                                        .buildAndComplete(executor.equals(teleporter), teleporter.getName());
+                            }
+                    );
+                });
+                return;
+            }
+        } catch (Exception e) {
+            // If confirmation fails, fall back to standard teleport
+            plugin.log(java.util.logging.Level.WARNING, "Teleport confirmation failed, falling back to standard teleport: " + e.getMessage());
         }
 
         // Standard teleport without confirmation
