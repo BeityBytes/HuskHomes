@@ -140,7 +140,7 @@ public class BukkitHuskHomes extends JavaPlugin implements HuskHomes, BukkitTask
         this.morePaperLib = new MorePaperLib(this);
         this.toilet = BukkitToilet.create(getDumpOptions());
         this.enable();
-        this.teleportConfirmations = new TeleportConfirmations(this);
+        // TEMPORARILY DISABLED: this.teleportConfirmations = new TeleportConfirmations(this);
         this.loadCommands();
     }
 

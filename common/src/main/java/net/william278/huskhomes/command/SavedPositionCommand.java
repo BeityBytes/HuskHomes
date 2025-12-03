@@ -60,12 +60,18 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
     @SuppressWarnings("unchecked")
     @Override
     public void execute(@NotNull CommandUser executor, @NotNull String[] args) {
+        // DEBUG: Log command execution
+        plugin.log(java.util.logging.Level.INFO, "SavedPositionCommand.execute() called with args: " + java.util.Arrays.toString(args));
+
         final Optional<String> name = parseStringArg(args, 0);
         if (name.isEmpty()) {
+            plugin.log(java.util.logging.Level.INFO, "No name provided, showing usage");
             plugin.getLocales().getLocale("error_invalid_syntax", getUsage())
                     .ifPresent(executor::sendMessage);
             return;
         }
+
+        plugin.log(java.util.logging.Level.INFO, "Executing " + positionType + " command for: " + name.get());
 
         // Resolve and execute
         final Optional<?> position = (positionType == PositionCommandType.WARP
@@ -190,7 +196,9 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
             return;
         }
 
-        // Handle economy-based teleport confirmation if needed
+        // TEMPORARILY DISABLED: Handle economy-based teleport confirmation if needed
+        // This is disabled to debug why /home is not working at all
+        /*
         try {
             if (executor instanceof OnlineUser onlineExecutor &&
                 plugin.getSettings().getEconomy().isEnabled() &&
@@ -220,6 +228,7 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
             // If confirmation fails, fall back to standard teleport
             plugin.log(java.util.logging.Level.WARNING, "Teleport confirmation failed, falling back to standard teleport: " + e.getMessage());
         }
+        */
 
         // Standard teleport without confirmation
         Teleport.builder(plugin)
