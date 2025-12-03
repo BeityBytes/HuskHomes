@@ -336,7 +336,7 @@ public interface TransactionResolver {
                 distanceSettings.getInterDimensionalFee(),
                 distanceSettings.getMinimumCost(),
                 distanceSettings.getMaximumCost(),
-                distanceSettings.isEnableInterDimensionalFees(),
+                distanceSettings.isEnable_inter_dimensional_fees(),
                 isInterDimensional
         );
     }

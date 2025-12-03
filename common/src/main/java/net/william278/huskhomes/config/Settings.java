@@ -460,7 +460,7 @@ public final class Settings {
             private double interDimensionalFee = 50.0;
 
             @Comment("Enable inter-dimensional fees")
-            private boolean enableInterDimensionalFees = false;
+            private boolean enable_inter_dimensional_fees = false;
 
             @Comment("Minimum cost for teleportation (0 = no minimum)")
             private double minimumCost = 0.0;
