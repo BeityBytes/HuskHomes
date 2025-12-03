@@ -52,6 +52,7 @@ import net.william278.huskhomes.random.RandomTeleportEngine;
 import net.william278.huskhomes.user.*;
 import net.william278.huskhomes.util.BukkitSavePositionProvider;
 import net.william278.huskhomes.util.BukkitTask;
+import net.william278.huskhomes.util.TeleportConfirmations;
 import net.william278.huskhomes.util.UnsafeBlocks;
 import net.william278.toilet.BukkitToilet;
 import net.william278.toilet.Toilet;
@@ -93,6 +94,8 @@ public class BukkitHuskHomes extends JavaPlugin implements HuskHomes, BukkitTask
     private final Map<UUID, OnlineUser> onlineUserMap = Maps.newHashMap();
     private final Map<String, List<User>> globalUserList = Maps.newConcurrentMap();
     private final List<Command> commands = Lists.newArrayList();
+
+    private TeleportConfirmations teleportConfirmations;
 
     @Setter
     private Set<Hook> hooks = Sets.newHashSet();
@@ -136,6 +139,7 @@ public class BukkitHuskHomes extends JavaPlugin implements HuskHomes, BukkitTask
         this.audiences = BukkitAudiences.create(this);
         this.morePaperLib = new MorePaperLib(this);
         this.toilet = BukkitToilet.create(getDumpOptions());
+        this.teleportConfirmations = new TeleportConfirmations(this);
         this.enable();
         this.loadCommands();
     }
@@ -327,6 +331,12 @@ public class BukkitHuskHomes extends JavaPlugin implements HuskHomes, BukkitTask
     @NotNull
     public BukkitHuskHomes getPlugin() {
         return this;
+    }
+
+    @Override
+    @NotNull
+    public Optional<TeleportConfirmations> getTeleportConfirmations() {
+        return Optional.ofNullable(teleportConfirmations);
     }
 
     public static class Adapter {
