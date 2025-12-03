@@ -190,6 +190,30 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
             return;
         }
 
+        // Handle economy-based teleport confirmation if needed
+        if (executor instanceof OnlineUser onlineExecutor &&
+            plugin.getSettings().getEconomy().isEnabled() &&
+            plugin.getTeleportConfirmations().requiresConfirmation(onlineExecutor, actions[0]) &&
+            teleporter instanceof OnlineUser onlineTeleporter) {
+
+            // Send confirmation prompt for dynamic or static costs
+            plugin.getTeleportConfirmations().sendConfirmationPrompt(
+                    onlineExecutor,
+                    actions[0],
+                    onlineExecutor.getPosition(),
+                    position.getPosition(),
+                    () -> {
+                        Teleport.builder(plugin)
+                                .teleporter(teleporter)
+                                .actions(actions)
+                                .target(position)
+                                .buildAndComplete(executor.equals(teleporter), teleporter.getName());
+                    }
+            );
+            return;
+        }
+
+        // Standard teleport without confirmation
         Teleport.builder(plugin)
                 .teleporter(teleporter)
                 .actions(actions)

@@ -5,8 +5,8 @@
  *  Copyright (c) contributors
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -70,7 +70,7 @@ public class TeleportConfirmations {
     }
 
     /**
-     * Send a teleport confirmation prompt to the user.
+     * Send a teleport confirmation prompt to a user.
      *
      * @param user          the user
      * @param action        the teleport action
@@ -111,6 +111,7 @@ public class TeleportConfirmations {
                 user.getUuid(), action, fromPosition, toPosition,
                 teleportTask, cost
         );
+        confirmation.setOnlineUser(user);
 
         pendingConfirmations.put(user.getUuid(), confirmation);
 
@@ -139,8 +140,21 @@ public class TeleportConfirmations {
             return false;
         }
 
-        // Execute the teleport
-        confirmation.getTeleportTask().run();
+        // Execute the teleport with proper transaction handling
+        if (plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(confirmation.getAction())) {
+            // Execute teleport with distance-based transaction
+            plugin.performTransaction(
+                    confirmation.getOnlineUser(),
+                    confirmation.getAction(),
+                    confirmation.getFromPosition(),
+                    confirmation.getToPosition()
+            );
+            confirmation.getTeleportTask().run();
+        } else {
+            // Execute teleport with standard transaction
+            plugin.performTransaction(confirmation.getOnlineUser(), confirmation.getAction());
+            confirmation.getTeleportTask().run();
+        }
 
         // Remove from pending
         pendingConfirmations.remove(user.getUuid());
@@ -156,7 +170,7 @@ public class TeleportConfirmations {
      * Cancel a pending teleport.
      *
      * @param user     the user
-     * @param timeout  whether the cancellation is due to timeout
+     * @param timeout  whether cancellation is due to timeout
      */
     public void cancelConfirmation(@NotNull OnlineUser user, boolean timeout) {
         PendingConfirmation confirmation = pendingConfirmations.get(user.getUuid());
@@ -181,10 +195,10 @@ public class TeleportConfirmations {
     }
 
     /**
-     * Get pending confirmation for a user.
+     * Get a pending confirmation.
      *
      * @param user the user
-     * @return the pending confirmation, or null if none
+     * @return the pending confirmation if present
      */
     @Nullable
     public PendingConfirmation getPendingConfirmation(@NotNull OnlineUser user) {
@@ -192,7 +206,23 @@ public class TeleportConfirmations {
     }
 
     /**
-     * Send the confirmation message to the user.
+     * Get whether a user has a pending confirmation.
+     *
+     * @param user the user
+     * @return true if user has a pending confirmation, false otherwise
+     */
+    public boolean ifPresentOrElse(@NotNull OnlineUser user, @NotNull ThrowingConsumer<TeleportConfirmations> consumer,
+                                     @NotNull Runnable elseTask) {
+        if (pendingConfirmations.containsKey(user.getUuid())) {
+            consumer.accept(this);
+            return true;
+        }
+        elseTask.run();
+        return false;
+    }
+
+    /**
+     * Send confirmation message to user with cost and distance information.
      */
     private void sendConfirmationMessage(@NotNull OnlineUser user, @NotNull TransactionResolver.Action action,
                                        double cost, double distance) {
@@ -224,7 +254,7 @@ public class TeleportConfirmations {
     /**
      * Clean up resources.
      */
-    public void shutdown() {
+    public void close() {
         scheduler.shutdown();
         pendingConfirmations.clear();
     }
@@ -233,9 +263,10 @@ public class TeleportConfirmations {
      * Represents a pending teleport confirmation.
      */
     @Getter
-    @NoArgsConstructor
+    @AllArgsConstructor
     public static class PendingConfirmation {
         private UUID userUuid;
+        private OnlineUser onlineUser;
         private TransactionResolver.Action action;
         private Position fromPosition;
         private Position toPosition;
@@ -243,16 +274,8 @@ public class TeleportConfirmations {
         private double cost;
         private long creationTime;
 
-        public PendingConfirmation(@NotNull UUID userUuid, @NotNull TransactionResolver.Action action,
-                                @NotNull Position fromPosition, @NotNull Position toPosition,
-                                @NotNull Runnable teleportTask, double cost) {
-            this.userUuid = userUuid;
-            this.action = action;
-            this.fromPosition = fromPosition;
-            this.toPosition = toPosition;
-            this.teleportTask = teleportTask;
-            this.cost = cost;
-            this.creationTime = System.currentTimeMillis();
+        public void setOnlineUser(@NotNull OnlineUser onlineUser) {
+            this.onlineUser = onlineUser;
         }
     }
 }

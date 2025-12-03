@@ -270,4 +270,29 @@ public interface HuskHomes extends Task.Supplier, EventDispatcher, SavePositionP
         return Optional.empty();
     }
 
+    /**
+     * Calculate distance-based cost for a teleport action.
+     *
+     * @param action        the action to calculate cost for
+     * @param fromPosition  the starting position
+     * @param toPosition    the destination position
+     * @return the calculated cost
+     */
+    default double calculateDistanceBasedCost(@NotNull TransactionResolver.Action action,
+                                           @NotNull Position fromPosition,
+                                           @NotNull Position toPosition) {
+        if (!getSettings().getEconomy().isDistanceBasedCostingEnabled(action)) {
+            return 0.0;
+        }
+
+        return DistanceCalculator.calculateTotalCost(
+                DistanceCalculator.calculateDistance(fromPosition, toPosition, getSettings().getEconomy().getDistanceBasedCosts().isUse3dDistance()),
+                getSettings().getEconomy().getDistanceBasedCosts().getCostPerBlock(),
+                getSettings().getEconomy().getDistanceBasedCosts().getInterDimensionalFee(),
+                getSettings().getEconomy().getDistanceBasedCosts().getMinimumCost(),
+                getSettings().getEconomy().getDistanceBasedCosts().getMaximumCost(),
+                getSettings().getEconomy().getDistanceBasedCosts().isEnableInterDimensionalFees()
+        );
+    }
+
 }
