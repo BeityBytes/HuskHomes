@@ -250,7 +250,7 @@ public class TeleportConfirmations {
 
         // Send cost if applicable
         if (!costText.isEmpty()) {
-            plugin.getLocales().getRawLocale("teleport_confirmation_cost", costText)
+            plugin.getLocales().getLocale("teleport_confirmation_cost", costText)
                     .ifPresent(user::sendMessage);
         }
 
