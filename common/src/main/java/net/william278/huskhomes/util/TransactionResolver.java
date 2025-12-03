@@ -70,28 +70,55 @@ public interface TransactionResolver {
 
     // Validates if the user has funds to perform an action
     private boolean hasFunds(@NotNull OnlineUser player, @NotNull Action action) {
-        return getPlugin().getSettings().getEconomy().getCost(action).map(Math::abs)
-                .flatMap(c -> player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)
-                        ? Optional.empty() : Optional.of(c))
-                .map(c -> getEconomyHook()
-                        .map(hook -> {
-                            if (hook.getPlayerBalance(player) < c) {
-                                getPlugin().getLocales().getLocale("error_insufficient_funds",
-                                                hook.formatCurrency(c))
-                                        .ifPresent(player::sendMessage);
-                                return false;
-                            }
-                            return true;
-                        })
-                        .orElse(true))
-                .orElse(true);
+        // Check if economy is enabled and get cost based on the current mode
+        if (!getPlugin().getSettings().getEconomy().isEnabled()) {
+            return true;
+        }
+
+        // Handle static cost mode
+        if (getPlugin().getSettings().getEconomy().isStaticCostEnabled()) {
+            return getPlugin().getSettings().getEconomy().getCost(action).map(Math::abs)
+                    .flatMap(c -> player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)
+                            ? Optional.empty() : Optional.of(c))
+                    .map(c -> getEconomyHook()
+                            .map(hook -> {
+                                if (hook.getPlayerBalance(player) < c) {
+                                    getPlugin().getLocales().getLocale("error_insufficient_funds",
+                                                    hook.formatCurrency(c))
+                                            .ifPresent(player::sendMessage);
+                                    return false;
+                                }
+                                return true;
+                            })
+                            .orElse(true))
+                    .orElse(true);
+        }
+
+        // Handle dynamic cost mode - validation is done in the distance-based method
+        if (getPlugin().getSettings().getEconomy().isDynamicCostEnabled()) {
+            return getEconomyHook().isPresent(); // Just check if economy is available
+        }
+
+        // No costs enabled
+        return true;
     }
 
     // Validates if the user has funds to perform an action with distance-based costing
     private boolean hasFunds(@NotNull OnlineUser player, @NotNull Action action,
                               @NotNull Position fromPosition, @NotNull Position toPosition) {
-        // Check if distance-based costing is enabled for this action
-        if (getPlugin().getSettings().getEconomy().isDistanceBasedCostingEnabled(action)) {
+        // Check if economy is enabled
+        if (!getPlugin().getSettings().getEconomy().isEnabled()) {
+            return true;
+        }
+
+        // Handle static cost mode - fall back to regular hasFunds
+        if (getPlugin().getSettings().getEconomy().isStaticCostEnabled()) {
+            return hasFunds(player, action);
+        }
+
+        // Handle dynamic cost mode
+        if (getPlugin().getSettings().getEconomy().isDynamicCostEnabled() &&
+            getPlugin().getSettings().getEconomy().isDistanceBasedCostingEnabled(action)) {
             double calculatedCost = calculateDistanceBasedCost(action, fromPosition, toPosition);
 
             return player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)
@@ -163,15 +190,33 @@ public interface TransactionResolver {
      * @param action the {@link Action action} to deduct the cost from if needed
      */
     default void performTransaction(@NotNull OnlineUser player, @NotNull Action action) {
-        getEconomyHook().ifPresent(hook -> getPlugin().getSettings().getEconomy()
-                .getCost(action).map(Math::abs)
-                .flatMap(c -> player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)
-                        ? Optional.empty() : Optional.of(c))
-                .ifPresent(cost -> {
-                    hook.changePlayerBalance(player, -cost);
-                    hook.notifyDeducted(player, getPlugin(), action);
-                }));
+        // Check if economy is enabled
+        if (!getPlugin().getSettings().getEconomy().isEnabled()) {
+            // Just handle cooldowns
+            handleCooldown(player, action);
+            return;
+        }
 
+        // Handle static cost mode
+        if (getPlugin().getSettings().getEconomy().isStaticCostEnabled()) {
+            getEconomyHook().ifPresent(hook -> getPlugin().getSettings().getEconomy()
+                    .getCost(action).map(Math::abs)
+                    .flatMap(c -> player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)
+                            ? Optional.empty() : Optional.of(c))
+                    .ifPresent(cost -> {
+                        hook.changePlayerBalance(player, -cost);
+                        hook.notifyDeducted(player, getPlugin(), action);
+                    }));
+        }
+
+        // Handle cooldowns
+        handleCooldown(player, action);
+    }
+
+    /**
+     * Handle cooldowns for an action
+     */
+    private void handleCooldown(@NotNull OnlineUser player, @NotNull Action action) {
         final long configCooldown = getPlugin().getSettings().getCooldowns().getCooldown(action);
         if (configCooldown > 0 && !player.hasPermission(Action.BYPASS_COOLDOWNS_PERMISSION)) {
             getPlugin().getDatabase().setCooldown(action, player, Instant.now().plusSeconds(configCooldown));
@@ -189,29 +234,40 @@ public interface TransactionResolver {
      */
     default void performTransaction(@NotNull OnlineUser player, @NotNull Action action,
                                      @NotNull Position fromPosition, @NotNull Position toPosition) {
-        getEconomyHook().ifPresent(hook -> {
-            double cost;
+        // Check if economy is enabled
+        if (!getPlugin().getSettings().getEconomy().isEnabled()) {
+            // Just handle cooldowns
+            handleCooldown(player, action);
+            return;
+        }
 
-            // Use distance-based cost if enabled, otherwise use static cost
-            if (getPlugin().getSettings().getEconomy().isDistanceBasedCostingEnabled(action)) {
-                cost = calculateDistanceBasedCost(action, fromPosition, toPosition);
-            } else {
+        getEconomyHook().ifPresent(hook -> {
+            double cost = 0.0;
+
+            // Handle static cost mode
+            if (getPlugin().getSettings().getEconomy().isStaticCostEnabled()) {
                 cost = getPlugin().getSettings().getEconomy().getCost(action).map(Math::abs)
                         .flatMap(c -> player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)
                                 ? Optional.empty() : Optional.of(c))
                         .orElse(0.0);
             }
+            // Handle dynamic cost mode
+            else if (getPlugin().getSettings().getEconomy().isDynamicCostEnabled() &&
+                       getPlugin().getSettings().getEconomy().isDistanceBasedCostingEnabled(action)) {
+                cost = calculateDistanceBasedCost(action, fromPosition, toPosition);
+                if (player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)) {
+                    cost = 0.0;
+                }
+            }
 
-            if (cost > 0 && !player.hasPermission(Action.BYPASS_ECONOMY_PERMISSION)) {
+            if (cost > 0) {
                 hook.changePlayerBalance(player, -cost);
                 hook.notifyDeducted(player, getPlugin(), action);
             }
         });
 
-        final long configCooldown = getPlugin().getSettings().getCooldowns().getCooldown(action);
-        if (configCooldown > 0 && !player.hasPermission(Action.BYPASS_COOLDOWNS_PERMISSION)) {
-            getPlugin().getDatabase().setCooldown(action, player, Instant.now().plusSeconds(configCooldown));
-        }
+        // Handle cooldowns
+        handleCooldown(player, action);
     }
 
     /**

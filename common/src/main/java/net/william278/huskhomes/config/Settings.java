@@ -410,17 +410,47 @@ public final class Settings {
         @Comment("Enable economy plugin integration (requires Vault and a compatible Economy plugin)")
         private boolean enabled = false;
 
-        @Comment("Map of economy actions to costs.")
-        private Map<TransactionResolver.Action, Double> economyCosts = TransactionResolver.Action.getEconomyCosts();
-
         @Comment("Specify how many homes players can set for free, before they need to pay for more slots")
         private int freeHomeSlots = 5;
 
-        @Comment("Distance-based teleportation cost settings")
+        @Comment("Cost calculation mode: STATIC (fixed costs) or DYNAMIC (distance-based costs)")
+        private CostMode costMode = CostMode.STATIC;
+
+        @Comment("Static cost settings - used when costMode is STATIC")
+        private StaticCostSettings staticCosts = new StaticCostSettings();
+
+        @Comment("Dynamic (distance-based) cost settings - used when costMode is DYNAMIC")
         private DistanceBasedCostSettings distanceBasedCosts = new DistanceBasedCostSettings();
 
         @Comment("Teleport confirmation settings")
         private TeleportConfirmationSettings teleportConfirmations = new TeleportConfirmationSettings();
+
+        /**
+         * Cost calculation modes
+         */
+        public enum CostMode {
+            STATIC,
+            DYNAMIC
+        }
+
+        @Getter
+        @Configuration
+        @NoArgsConstructor
+        public static class StaticCostSettings {
+
+            @Comment("Enable static cost system")
+            private boolean enabled = true;
+
+            @Comment("Map of economy actions to static costs")
+            private Map<TransactionResolver.Action, Double> economyCosts = TransactionResolver.Action.getEconomyCosts();
+
+            public Optional<Double> getCost(@NotNull TransactionResolver.Action action) {
+                if (!enabled) {
+                    return Optional.empty();
+                }
+                return economyCosts.containsKey(action) ? Optional.of(economyCosts.get(action)) : Optional.empty();
+            }
+        }
 
         @Getter
         @Configuration
@@ -473,26 +503,77 @@ public final class Settings {
             private List<String> enabledForTypes = List.of("HOME_TELEPORT", "PUBLIC_HOME_TELEPORT", "WARP_TELEPORT", "SPAWN_TELEPORT", "SEND_TELEPORT_REQUEST", "ACCEPT_TELEPORT_REQUEST");
         }
 
+        /**
+         * Get the cost for an action based on the current cost mode (STATIC or DYNAMIC)
+         */
         public Optional<Double> getCost(@NotNull TransactionResolver.Action action) {
             if (!enabled) {
                 return Optional.empty();
             }
-            return economyCosts.containsKey(action) ? Optional.of(economyCosts.get(action)) : Optional.empty();
+
+            // Return static cost if in STATIC mode and static costs are enabled
+            if (costMode == CostMode.STATIC && staticCosts.enabled) {
+                return staticCosts.getCost(action);
+            }
+
+            // For DYNAMIC mode, cost is calculated based on distance and handled differently
+            // This method returns empty for DYNAMIC mode to indicate distance-based calculation should be used
+            if (costMode == CostMode.DYNAMIC && isDistanceBasedCostingEnabled(action)) {
+                return Optional.empty(); // Cost will be calculated dynamically
+            }
+
+            // Fallback to static costs if dynamic is not enabled for this action
+            return staticCosts.getCost(action);
         }
 
+        /**
+         * Check if distance-based costing is enabled for an action
+         */
         public boolean isDistanceBasedCostingEnabled(@NotNull TransactionResolver.Action action) {
-            return distanceBasedCosts.enabled &&
+            return costMode == CostMode.DYNAMIC &&
+                   distanceBasedCosts.enabled &&
                    distanceBasedCosts.enabledForTypes.contains(action.name());
         }
 
+        /**
+         * Check if teleport confirmation is enabled for an action
+         */
         public boolean isTeleportConfirmationEnabled(@NotNull TransactionResolver.Action action) {
             return teleportConfirmations.enabled &&
-                   (!teleportConfirmations.onlyWhenCharged || hasDistanceBasedCost(action)) &&
-                   teleportConfirmations.enabledForTypes.contains(action.name());
+                   teleportConfirmations.enabledForTypes.contains(action.name()) &&
+                   (!teleportConfirmations.onlyWhenCharged || hasAnyCost(action));
         }
 
-        private boolean hasDistanceBasedCost(@NotNull TransactionResolver.Action action) {
-            return isDistanceBasedCostingEnabled(action);
+        /**
+         * Check if an action has any cost (static or dynamic)
+         */
+        private boolean hasAnyCost(@NotNull TransactionResolver.Action action) {
+            // Check for static cost
+            if (costMode == CostMode.STATIC && staticCosts.enabled) {
+                return staticCosts.getCost(action).map(cost -> cost > 0).orElse(false);
+            }
+
+            // Check for dynamic cost
+            if (costMode == CostMode.DYNAMIC && isDistanceBasedCostingEnabled(action)) {
+                return true; // Dynamic costs are always > 0 if enabled
+            }
+
+            // Fallback check
+            return staticCosts.getCost(action).map(cost -> cost > 0).orElse(false);
+        }
+
+        /**
+         * Get whether static costs are enabled
+         */
+        public boolean isStaticCostEnabled() {
+            return costMode == CostMode.STATIC && staticCosts.enabled;
+        }
+
+        /**
+         * Get whether dynamic costs are enabled
+         */
+        public boolean isDynamicCostEnabled() {
+            return costMode == CostMode.DYNAMIC && distanceBasedCosts.enabled;
         }
     }
 
