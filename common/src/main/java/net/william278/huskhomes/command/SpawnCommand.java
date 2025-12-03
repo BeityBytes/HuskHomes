@@ -24,6 +24,7 @@ import net.william278.huskhomes.position.Position;
 import net.william278.huskhomes.teleport.Teleport;
 import net.william278.huskhomes.teleport.Teleportable;
 import net.william278.huskhomes.user.CommandUser;
+import net.william278.huskhomes.user.OnlineUser;
 import net.william278.huskhomes.util.TransactionResolver;
 import org.jetbrains.annotations.NotNull;
 
@@ -66,6 +67,32 @@ public class SpawnCommand extends Command {
         if (!executor.equals(teleporter) && !executor.hasPermission(getPermission("other"))) {
             plugin.getLocales().getLocale("error_no_permission")
                     .ifPresent(executor::sendMessage);
+            return;
+        }
+
+        // Handle economy-based teleport confirmation if needed
+        if (executor instanceof OnlineUser onlineExecutor &&
+            plugin.getSettings().getEconomy().isEnabled() &&
+            plugin.getTeleportConfirmations().map(teleportConfirmations ->
+                teleportConfirmations.requiresConfirmation(onlineExecutor, TransactionResolver.Action.SPAWN_TELEPORT)).orElse(false) &&
+            teleporter instanceof OnlineUser onlineTeleporter) {
+
+            // Send confirmation prompt for dynamic or static costs
+            plugin.getTeleportConfirmations().ifPresent(teleportConfirmations -> {
+                teleportConfirmations.sendConfirmationPrompt(
+                        onlineExecutor,
+                        TransactionResolver.Action.SPAWN_TELEPORT,
+                        onlineExecutor.getPosition(),
+                        spawn,
+                        () -> {
+                            Teleport.builder(plugin)
+                                    .teleporter(teleporter)
+                                    .actions(TransactionResolver.Action.SPAWN_TELEPORT)
+                                    .target(spawn)
+                                    .buildAndComplete(teleporter.equals(executor), args);
+                        }
+                );
+            });
             return;
         }
 
