@@ -193,7 +193,20 @@ public class Teleport implements Completable {
     // Check economy actions
     protected void validateTransactions() throws TeleportationException {
         if (actions.stream()
-                .map(action -> plugin.validateTransaction(executor, action))
+                .map(action -> {
+                    // Check if this action uses distance-based costing
+                    if (plugin.getSettings().getEconomy().isDynamicCostEnabled() &&
+                        plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(action) &&
+                        teleporter instanceof OnlineUser onlineTeleporter) {
+                        // Use distance-based validation with position data
+                        return plugin.validateTransaction(onlineTeleporter, action,
+                            onlineTeleporter.getPosition(),
+                            target instanceof Position ? (Position) target : onlineTeleporter.getPosition());
+                    } else {
+                        // Use standard validation for static costs
+                        return plugin.validateTransaction(executor, action);
+                    }
+                })
                 .anyMatch(result -> !result)) {
             throw new TeleportationException(TeleportationException.Type.TRANSACTION_FAILED, plugin);
         }
@@ -201,7 +214,20 @@ public class Teleport implements Completable {
 
     // Perform economy and cooldown transactions
     private void performTransactions() {
-        actions.forEach(action -> plugin.performTransaction(executor, action));
+        actions.forEach(action -> {
+            // Check if this action uses distance-based costing
+            if (plugin.getSettings().getEconomy().isDynamicCostEnabled() &&
+                plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(action) &&
+                teleporter instanceof OnlineUser onlineTeleporter) {
+                // Use distance-based transaction with position data
+                plugin.performTransaction(onlineTeleporter, action,
+                    onlineTeleporter.getPosition(),
+                    target instanceof Position ? (Position) target : onlineTeleporter.getPosition());
+            } else {
+                // Use standard transaction for static costs
+                plugin.performTransaction(executor, action);
+            }
+        });
     }
 
     /**
