@@ -193,23 +193,26 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
         // Handle economy-based teleport confirmation if needed
         if (executor instanceof OnlineUser onlineExecutor &&
             plugin.getSettings().getEconomy().isEnabled() &&
-            plugin.getTeleportConfirmations().requiresConfirmation(onlineExecutor, actions[0]) &&
+            plugin.getTeleportConfirmations().map(teleportConfirmations ->
+                teleportConfirmations.requiresConfirmation(onlineExecutor, actions[0])).orElse(false) &&
             teleporter instanceof OnlineUser onlineTeleporter) {
 
             // Send confirmation prompt for dynamic or static costs
-            plugin.getTeleportConfirmations().sendConfirmationPrompt(
-                    onlineExecutor,
-                    actions[0],
-                    onlineExecutor.getPosition(),
-                    position.getPosition(),
-                    () -> {
-                        Teleport.builder(plugin)
-                                .teleporter(teleporter)
-                                .actions(actions)
-                                .target(position)
-                                .buildAndComplete(executor.equals(teleporter), teleporter.getName());
-                    }
-            );
+            plugin.getTeleportConfirmations().ifPresent(teleportConfirmations -> {
+                teleportConfirmations.sendConfirmationPrompt(
+                        onlineExecutor,
+                        actions[0],
+                        onlineExecutor.getPosition(),
+                        position,
+                        () -> {
+                            Teleport.builder(plugin)
+                                    .teleporter(teleporter)
+                                    .actions(actions)
+                                    .target(position)
+                                    .buildAndComplete(executor.equals(teleporter), teleporter.getName());
+                        }
+                );
+            });
             return;
         }
 

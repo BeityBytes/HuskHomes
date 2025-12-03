@@ -5,8 +5,8 @@
  *  Copyright (c) contributors
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -19,8 +19,10 @@
 
 package net.william278.huskhomes.util;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import net.william278.desertwell.util.ThrowingConsumer;
 import net.william278.huskhomes.HuskHomes;
 import net.william278.huskhomes.position.Position;
 import net.william278.huskhomes.user.OnlineUser;
@@ -108,10 +110,9 @@ public class TeleportConfirmations {
 
         // Create pending confirmation
         PendingConfirmation confirmation = new PendingConfirmation(
-                user.getUuid(), action, fromPosition, toPosition,
-                teleportTask, cost
+                user.getUuid(), user, action, fromPosition, toPosition,
+                teleportTask, cost, System.currentTimeMillis()
         );
-        confirmation.setOnlineUser(user);
 
         pendingConfirmations.put(user.getUuid(), confirmation);
 
