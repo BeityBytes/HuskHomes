@@ -38,12 +38,7 @@ public final class DistanceCalculator {
      * @return the calculated distance in blocks
      */
     public static double calculateDistance(@NotNull Position from, @NotNull Position to, boolean use3d) {
-        // If positions are in different dimensions, return 0 distance (only charge inter-dimensional fee)
-        if (!from.getWorld().equals(to.getWorld())) {
-            return 0; // No distance cost for inter-dimensional teleports
-        }
-
-        // Calculate distance for same-dimension teleports
+        // Calculate distance even between dimensions - we'll add inter-dimensional fee later
         double dx = to.getX() - from.getX();
         double dz = to.getZ() - from.getZ();
         double distance2d = Math.sqrt(dx * dx + dz * dz);
@@ -172,21 +167,24 @@ public final class DistanceCalculator {
                                            boolean isInterDimensional) {
         double baseCost = 0;
 
-        // Calculate distance-based cost (only for same-dimension teleports)
+        // Calculate distance-based cost (for all teleports with distance)
         if (distance > 0) {
-            baseCost = calculateBaseCost(distance, costPerBlock, minimumCost, maximumCost);
+            baseCost = calculateBaseCost(distance, costPerBlock, 0, maximumCost); // Don't apply minimum yet
         }
 
         // Add inter-dimensional fee if applicable
         if (applyInterDimensionalFee && isInterDimensional) {
             baseCost += interDimensionalFee;
-            // Apply minimum/maximum to inter-dimensional cost as well
-            if (minimumCost > 0 && baseCost < minimumCost) {
-                baseCost = minimumCost;
-            }
-            if (maximumCost > 0 && baseCost > maximumCost) {
-                baseCost = maximumCost;
-            }
+        }
+
+        // Apply minimum cost last (to both distance-only and distance+fee teleports)
+        if (minimumCost > 0 && baseCost < minimumCost) {
+            baseCost = minimumCost;
+        }
+
+        // Apply maximum cost as final cap
+        if (maximumCost > 0 && baseCost > maximumCost) {
+            baseCost = maximumCost;
         }
 
         return baseCost;

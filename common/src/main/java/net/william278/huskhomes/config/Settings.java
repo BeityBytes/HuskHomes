@@ -414,12 +414,12 @@ public final class Settings {
         private int freeHomeSlots = 5;
 
         @Comment("Cost calculation mode: STATIC (fixed costs) or DYNAMIC (distance-based costs)")
-        private CostMode costMode = CostMode.STATIC;
+        private CostMode cost_mode = CostMode.STATIC;
 
-        @Comment("Static cost settings - used when costMode is STATIC")
+        @Comment("Static cost settings - used when cost_mode is STATIC")
         private StaticCostSettings staticCosts = new StaticCostSettings();
 
-        @Comment("Dynamic (distance-based) cost settings - used when costMode is DYNAMIC")
+        @Comment("Dynamic (distance-based) cost settings - used when cost_mode is DYNAMIC")
         private DistanceBasedCostSettings distanceBasedCosts = new DistanceBasedCostSettings();
 
         @Comment("Teleport confirmation settings")
@@ -505,13 +505,13 @@ public final class Settings {
             }
 
             // Return static cost if in STATIC mode
-            if (costMode == CostMode.STATIC) {
+            if (cost_mode == CostMode.STATIC) {
                 return staticCosts.getCost(action);
             }
 
             // For DYNAMIC mode, cost is calculated based on distance and handled differently
             // This method returns empty for DYNAMIC mode to indicate distance-based calculation should be used
-            if (costMode == CostMode.DYNAMIC && isDistanceBasedCostingEnabled(action)) {
+            if (cost_mode == CostMode.DYNAMIC && isDistanceBasedCostingEnabled(action)) {
                 return Optional.empty(); // Cost will be calculated dynamically
             }
 
@@ -523,7 +523,7 @@ public final class Settings {
          * Check if distance-based costing is enabled for an action
          */
         public boolean isDistanceBasedCostingEnabled(@NotNull TransactionResolver.Action action) {
-            return costMode == CostMode.DYNAMIC &&
+            return cost_mode == CostMode.DYNAMIC &&
                    distanceBasedCosts.enabledForTypes.contains(action.name());
         }
 
@@ -541,12 +541,12 @@ public final class Settings {
          */
         private boolean hasAnyCost(@NotNull TransactionResolver.Action action) {
             // Check for static cost
-            if (costMode == CostMode.STATIC) {
+            if (cost_mode == CostMode.STATIC) {
                 return staticCosts.getCost(action).map(cost -> cost > 0).orElse(false);
             }
 
             // Check for dynamic cost
-            if (costMode == CostMode.DYNAMIC && isDistanceBasedCostingEnabled(action)) {
+            if (cost_mode == CostMode.DYNAMIC && isDistanceBasedCostingEnabled(action)) {
                 return true; // Dynamic costs are always > 0 if enabled
             }
 
@@ -558,14 +558,14 @@ public final class Settings {
          * Get whether static costs are enabled
          */
         public boolean isStaticCostEnabled() {
-            return costMode == CostMode.STATIC;
+            return cost_mode == CostMode.STATIC;
         }
 
         /**
          * Get whether dynamic costs are enabled
          */
         public boolean isDynamicCostEnabled() {
-            return costMode == CostMode.DYNAMIC;
+            return cost_mode == CostMode.DYNAMIC;
         }
     }
 
