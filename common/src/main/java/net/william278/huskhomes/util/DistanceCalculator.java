@@ -38,12 +38,12 @@ public final class DistanceCalculator {
      * @return the calculated distance in blocks
      */
     public static double calculateDistance(@NotNull Position from, @NotNull Position to, boolean use3d) {
-        // If positions are in different dimensions, return a special value indicating inter-dimensional teleport
+        // If positions are in different dimensions, return 0 distance (only charge inter-dimensional fee)
         if (!from.getWorld().equals(to.getWorld())) {
-            return -1; // Inter-dimensional teleport
+            return 0; // No distance cost for inter-dimensional teleports
         }
 
-        // Calculate 2D distance (X-Z plane)
+        // Calculate distance for same-dimension teleports
         double dx = to.getX() - from.getX();
         double dz = to.getZ() - from.getZ();
         double distance2d = Math.sqrt(dx * dx + dz * dz);
@@ -158,37 +158,32 @@ public final class DistanceCalculator {
     /**
      * Calculate the total teleportation cost including inter-dimensional fees.
      *
-     * @param distance              the distance in blocks (-1 for inter-dimensional)
+     * @param distance              the distance in blocks
      * @param costPerBlock         the cost per block
      * @param interDimensionalFee  the inter-dimensional fee
      * @param minimumCost         the minimum cost
      * @param maximumCost         the maximum cost (0 = no maximum)
      * @param applyInterDimensionalFee whether to apply inter-dimensional fees
+     * @param isInterDimensional   whether the teleport is inter-dimensional
      * @return the calculated total cost
      */
     public static double calculateTotalCost(double distance, double costPerBlock, double interDimensionalFee,
-                                           double minimumCost, double maximumCost, boolean applyInterDimensionalFee) {
+                                           double minimumCost, double maximumCost, boolean applyInterDimensionalFee,
+                                           boolean isInterDimensional) {
         double baseCost = 0;
 
-        // Calculate distance-based cost
+        // Calculate distance-based cost (only for same-dimension teleports)
         if (distance > 0) {
             baseCost = calculateBaseCost(distance, costPerBlock, minimumCost, maximumCost);
         }
 
-        // Add inter-dimensional fee
-        if (applyInterDimensionalFee && distance < 0) {
-            baseCost = interDimensionalFee;
+        // Add inter-dimensional fee if applicable
+        if (applyInterDimensionalFee && isInterDimensional) {
+            baseCost += interDimensionalFee;
             // Apply minimum/maximum to inter-dimensional cost as well
             if (minimumCost > 0 && baseCost < minimumCost) {
                 baseCost = minimumCost;
             }
-            if (maximumCost > 0 && baseCost > maximumCost) {
-                baseCost = maximumCost;
-            }
-        } else if (applyInterDimensionalFee && distance >= 0) {
-            // Add both distance cost AND inter-dimensional fee for different dimensions
-            baseCost += interDimensionalFee;
-            // Apply maximum after adding both costs
             if (maximumCost > 0 && baseCost > maximumCost) {
                 baseCost = maximumCost;
             }

@@ -326,6 +326,9 @@ public interface TransactionResolver {
         // Calculate distance
         double distance = DistanceCalculator.calculateDistance(fromPosition, toPosition, distanceSettings.isUse3dDistance());
 
+        // Check if teleport is inter-dimensional
+        boolean isInterDimensional = DistanceCalculator.isInterDimensional(fromPosition, toPosition);
+
         // Calculate total cost including inter-dimensional fees
         return DistanceCalculator.calculateTotalCost(
                 distance,
@@ -333,7 +336,8 @@ public interface TransactionResolver {
                 distanceSettings.getInterDimensionalFee(),
                 distanceSettings.getMinimumCost(),
                 distanceSettings.getMaximumCost(),
-                distanceSettings.isEnableInterDimensionalFees()
+                distanceSettings.isEnableInterDimensionalFees(),
+                isInterDimensional
         );
     }
 

@@ -291,7 +291,8 @@ public interface HuskHomes extends Task.Supplier, EventDispatcher, SavePositionP
                 getSettings().getEconomy().getDistanceBasedCosts().getInterDimensionalFee(),
                 getSettings().getEconomy().getDistanceBasedCosts().getMinimumCost(),
                 getSettings().getEconomy().getDistanceBasedCosts().getMaximumCost(),
-                getSettings().getEconomy().getDistanceBasedCosts().isEnableInterDimensionalFees()
+                getSettings().getEconomy().getDistanceBasedCosts().isEnableInterDimensionalFees(),
+                DistanceCalculator.isInterDimensional(fromPosition, toPosition)
         );
     }
 
