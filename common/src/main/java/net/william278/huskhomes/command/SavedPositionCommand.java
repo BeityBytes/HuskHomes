@@ -190,54 +190,33 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
             return;
         }
 
-        // DEBUG: Handle economy-based teleport confirmation with step-by-step logging
+        // Handle economy-based teleport confirmation
         try {
-            plugin.log(java.util.logging.Level.INFO, "DEBUG: Starting confirmation check");
+            if (executor instanceof OnlineUser onlineExecutor &&
+                plugin.getSettings().getEconomy().isEnabled() &&
+                plugin.getTeleportConfirmations().isPresent() &&
+                plugin.getTeleportConfirmations().get().requiresConfirmation(onlineExecutor, actions[0]) &&
+                teleporter instanceof OnlineUser onlineTeleporter) {
 
-            if (executor instanceof OnlineUser onlineExecutor) {
-                plugin.log(java.util.logging.Level.INFO, "DEBUG: Executor is OnlineUser");
-
-                if (plugin.getSettings().getEconomy().isEnabled()) {
-                    plugin.log(java.util.logging.Level.INFO, "DEBUG: Economy is enabled");
-
-                    if (plugin.getTeleportConfirmations().isPresent()) {
-                        plugin.log(java.util.logging.Level.INFO, "DEBUG: TeleportConfirmations is present");
-
-                        boolean requiresConfirmation = plugin.getTeleportConfirmations().get().requiresConfirmation(onlineExecutor, actions[0]);
-                        plugin.log(java.util.logging.Level.INFO, "DEBUG: Requires confirmation: " + requiresConfirmation);
-
-                        if (requiresConfirmation && teleporter instanceof OnlineUser onlineTeleporter) {
-                            plugin.log(java.util.logging.Level.INFO, "DEBUG: About to send confirmation prompt");
-
-                            plugin.getTeleportConfirmations().get().sendConfirmationPrompt(
-                                    onlineExecutor,
-                                    actions[0],
-                                    onlineExecutor.getPosition(),
-                                    position,
-                                    () -> {
-                                        Teleport.builder(plugin)
-                                                .teleporter(teleporter)
-                                                .actions(actions)
-                                                .target(position)
-                                                .buildAndComplete(executor.equals(teleporter), teleporter.getName());
-                                    }
-                            );
-                            plugin.log(java.util.logging.Level.INFO, "DEBUG: Confirmation prompt sent");
-                            return;
+                // Send confirmation prompt with interactive buttons
+                plugin.getTeleportConfirmations().get().sendConfirmationPrompt(
+                        onlineExecutor,
+                        actions[0],
+                        onlineExecutor.getPosition(),
+                        position,
+                        () -> {
+                            Teleport.builder(plugin)
+                                    .teleporter(teleporter)
+                                    .actions(actions)
+                                    .target(position)
+                                    .buildAndComplete(executor.equals(teleporter), teleporter.getName());
                         }
-                    } else {
-                        plugin.log(java.util.logging.Level.INFO, "DEBUG: TeleportConfirmations is NOT present");
-                    }
-                } else {
-                    plugin.log(java.util.logging.Level.INFO, "DEBUG: Economy is NOT enabled");
-                }
-            } else {
-                plugin.log(java.util.logging.Level.INFO, "DEBUG: Executor is NOT OnlineUser");
+                );
+                return;
             }
         } catch (Exception e) {
             // If confirmation fails, fall back to standard teleport and log the error
             plugin.log(java.util.logging.Level.WARNING, "Teleport confirmation failed, falling back to standard teleport: " + e.getMessage());
-            e.printStackTrace();
         }
 
         // Standard teleport without confirmation

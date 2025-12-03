@@ -223,7 +223,7 @@ public class TeleportConfirmations {
     }
 
     /**
-     * Send confirmation message to user with cost and distance information.
+     * Send confirmation message to user with cost and distance information and interactive buttons.
      */
     private void sendConfirmationMessage(@NotNull OnlineUser user, @NotNull TransactionResolver.Action action,
                                        double cost, double distance) {
@@ -234,21 +234,30 @@ public class TeleportConfirmations {
                                     .map(hook -> hook.formatCurrency(cost))
                                     .orElse(String.format("%.2f", cost)))
                     .orElse("0.00");
-            costText = " " + costMessage;
+            costText = costMessage;
         }
 
         String distanceText = "";
         if (distance >= 0) {
-            distanceText = " (" + DistanceCalculator.formatDistance(distance) + ")";
+            distanceText = DistanceCalculator.formatDistance(distance);
         }
 
+        // Send main prompt with action and distance
         plugin.getLocales().getLocale("teleport_confirmation_prompt",
                         action.name().toLowerCase().replace("_", " "),
-                        distanceText,
-                        costText)
+                        distanceText)
                 .ifPresent(message -> user.sendMessage(message));
 
-        plugin.getLocales().getLocale("teleport_confirmation_instructions")
+        // Send cost if applicable
+        if (!costText.isEmpty()) {
+            plugin.getLocales().getRawLocale("teleport_confirmation_cost", costText)
+                    .ifPresent(user::sendMessage);
+        }
+
+        // Send interactive buttons for confirmation
+        plugin.getLocales().getLocale("teleport_confirmation_instructions",
+                        action.name().toLowerCase().replace("_", " "),
+                        costText.isEmpty() ? "0.00" : costText)
                 .ifPresent(user::sendMessage);
     }
 
