@@ -106,7 +106,7 @@ public class TeleportConfirmations {
         );
 
         // Send confirmation message
-        sendConfirmationMessage(user, action, cost, distance);
+        sendConfirmationMessage(user, action, cost, distance, fromPosition, toPosition);
 
         // Create pending confirmation
         PendingConfirmation confirmation = new PendingConfirmation(
@@ -141,23 +141,34 @@ public class TeleportConfirmations {
             return false;
         }
 
-        // Execute the teleport with proper transaction handling
-        boolean transactionSuccess;
+        // Validate transaction before executing teleport
+        boolean transactionValid;
         if (plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(confirmation.getAction())) {
-            // Execute teleport with distance-based transaction
-            transactionSuccess = plugin.performTransaction(
+            // Validate distance-based transaction
+            transactionValid = plugin.validateTransaction(
                     confirmation.getOnlineUser(),
                     confirmation.getAction(),
                     confirmation.getFromPosition(),
                     confirmation.getToPosition()
             );
         } else {
-            // Execute teleport with standard transaction
-            transactionSuccess = plugin.performTransaction(confirmation.getOnlineUser(), confirmation.getAction());
+            // Validate standard transaction
+            transactionValid = plugin.validateTransaction(confirmation.getOnlineUser(), confirmation.getAction());
         }
 
-        // Only execute teleport if transaction was successful
-        if (transactionSuccess) {
+        // Only execute teleport if transaction is valid
+        if (transactionValid) {
+            // Execute the actual transaction (this will deduct the cost)
+            if (plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(confirmation.getAction())) {
+                plugin.performTransaction(
+                        confirmation.getOnlineUser(),
+                        confirmation.getAction(),
+                        confirmation.getFromPosition(),
+                        confirmation.getToPosition()
+                );
+            } else {
+                plugin.performTransaction(confirmation.getOnlineUser(), confirmation.getAction());
+            }
             confirmation.getTeleportTask().run();
         } else {
             // Remove from pending and show insufficient funds message
@@ -236,7 +247,7 @@ public class TeleportConfirmations {
      * Send confirmation message to user with cost and distance information and interactive buttons.
      */
     private void sendConfirmationMessage(@NotNull OnlineUser user, @NotNull TransactionResolver.Action action,
-                                       double cost, double distance) {
+                                       double cost, double distance, @NotNull Position fromPosition, @NotNull Position toPosition) {
         String costText = "";
         if (cost > 0 && plugin.getSettings().getEconomy().getTeleportConfirmations().isShowCost()) {
             final String costMessage = plugin.getLocales().getRawLocale("teleport_confirmation_cost",
