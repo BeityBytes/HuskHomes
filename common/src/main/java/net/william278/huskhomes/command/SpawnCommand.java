@@ -98,7 +98,7 @@ public class SpawnCommand extends Command implements TabCompletable {
                                     .teleporter(teleporter)
                                     .actions(TransactionResolver.Action.SPAWN_TELEPORT)
                                     .target(spawn)
-                                    .buildAndComplete(teleporter.equals(executor), args);
+                                    .buildAndComplete(true, args);
                         }
                 );
             });

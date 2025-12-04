@@ -141,42 +141,9 @@ public class TeleportConfirmations {
             return false;
         }
 
-        // Validate transaction before executing teleport
-        boolean transactionValid;
-        if (plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(confirmation.getAction())) {
-            // Validate distance-based transaction
-            transactionValid = plugin.validateTransaction(
-                    confirmation.getOnlineUser(),
-                    confirmation.getAction(),
-                    confirmation.getFromPosition(),
-                    confirmation.getToPosition()
-            );
-        } else {
-            // Validate standard transaction
-            transactionValid = plugin.validateTransaction(confirmation.getOnlineUser(), confirmation.getAction());
-        }
-
-        // Only execute teleport if transaction is valid
-        if (transactionValid) {
-            // Execute the actual transaction (this will deduct the cost)
-            if (plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(confirmation.getAction())) {
-                plugin.performTransaction(
-                        confirmation.getOnlineUser(),
-                        confirmation.getAction(),
-                        confirmation.getFromPosition(),
-                        confirmation.getToPosition()
-                );
-            } else {
-                plugin.performTransaction(confirmation.getOnlineUser(), confirmation.getAction());
-            }
-            confirmation.getTeleportTask().run();
-        } else {
-            // Remove from pending and show insufficient funds message
-            pendingConfirmations.remove(user.getUuid());
-            plugin.getLocales().getLocale("error_insufficient_funds")
-                    .ifPresent(user::sendMessage);
-            return false;
-        }
+        // Just execute the teleport task
+        // The Teleport system itself will handle transaction validation and deduction
+        confirmation.getTeleportTask().run();
 
         // Remove from pending
         pendingConfirmations.remove(user.getUuid());

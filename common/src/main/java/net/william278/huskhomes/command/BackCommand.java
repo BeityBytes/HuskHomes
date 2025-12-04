@@ -81,7 +81,7 @@ public class BackCommand extends InGameCommand implements TabCompletable {
                                     .target(lastPosition.get())
                                     .actions(TransactionResolver.Action.BACK_COMMAND)
                                     .type(Teleport.Type.BACK)
-                                    .buildAndComplete(false);
+                                    .buildAndComplete(true);
                         }
                 );
             });

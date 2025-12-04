@@ -224,7 +224,7 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
                                         .teleporter(teleporter)
                                         .actions(actions)
                                         .target(position)
-                                        .buildAndComplete(executor.equals(teleporter), teleporter.getName());
+                                        .buildAndComplete(true, teleporter.getName());
                             }
                     );
                     return;
