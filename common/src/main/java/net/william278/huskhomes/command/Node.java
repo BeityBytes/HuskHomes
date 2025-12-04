@@ -206,4 +206,24 @@ public abstract class Node implements Executable {
         return Optional.empty();
     }
 
+    protected boolean hasConfirmFlag(@NotNull String[] args) {
+        for (String arg : args) {
+            if (arg.equalsIgnoreCase("confirm")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @NotNull
+    protected String[] removeConfirmFlag(@NotNull String[] args) {
+        List<String> result = new ArrayList<>();
+        for (String arg : args) {
+            if (!arg.equalsIgnoreCase("confirm")) {
+                result.add(arg);
+            }
+        }
+        return result.toArray(new String[0]);
+    }
+
 }

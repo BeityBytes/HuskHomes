@@ -26,6 +26,7 @@ import net.william278.huskhomes.teleport.*;
 import net.william278.huskhomes.user.CommandUser;
 import net.william278.huskhomes.user.OnlineUser;
 import net.william278.huskhomes.user.User;
+import net.william278.huskhomes.util.TransactionResolver;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -47,20 +48,24 @@ public class TpCommand extends Command implements TabCompletable {
 
     @Override
     public void execute(@NotNull CommandUser executor, @NotNull String[] args) {
-        switch (args.length) {
+        // Check for confirm flag and clean args
+        boolean forceConfirm = hasConfirmFlag(args);
+        String[] cleanArgs = removeConfirmFlag(args);
+
+        switch (cleanArgs.length) {
             case 1 -> {
                 if (!(executor instanceof OnlineUser user)) {
                     plugin.getLocales().getLocale("error_in_game_only")
                             .ifPresent(executor::sendMessage);
                     return;
                 }
-                this.execute(executor, user, Target.username(args[0]), args);
+                this.execute(executor, user, Target.username(cleanArgs[0]), forceConfirm, cleanArgs);
             }
-            case 2 -> this.execute(executor, Teleportable.username(args[0]), Target.username(args[1]), args);
+            case 2 -> this.execute(executor, Teleportable.username(cleanArgs[0]), Target.username(cleanArgs[1]), forceConfirm, cleanArgs);
             default -> {
                 final Position basePosition = getBasePosition(executor);
                 Optional<Position> target = executor.hasPermission(getPermission("coordinates"))
-                        ? parsePositionArgs(basePosition, args, 0) : Optional.empty();
+                        ? parsePositionArgs(basePosition, cleanArgs, 0) : Optional.empty();
                 if (target.isPresent()) {
                     if (!(executor instanceof OnlineUser user)) {
                         plugin.getLocales().getLocale("error_in_game_only")
@@ -68,14 +73,14 @@ public class TpCommand extends Command implements TabCompletable {
                         return;
                     }
 
-                    this.execute(executor, user, target.get(), args);
+                    this.execute(executor, user, target.get(), forceConfirm, cleanArgs);
                     return;
                 }
 
                 target = executor.hasPermission(getPermission("coordinates"))
-                        ? parsePositionArgs(basePosition, args, 1) : Optional.empty();
-                if (target.isPresent() && args.length >= 1) {
-                    this.execute(executor, Teleportable.username(args[0]), target.get(), args);
+                        ? parsePositionArgs(basePosition, cleanArgs, 1) : Optional.empty();
+                if (target.isPresent() && cleanArgs.length >= 1) {
+                    this.execute(executor, Teleportable.username(cleanArgs[0]), target.get(), forceConfirm, cleanArgs);
                     return;
                 }
 
@@ -87,7 +92,7 @@ public class TpCommand extends Command implements TabCompletable {
 
     // Execute a teleport
     private void execute(@NotNull CommandUser executor, @NotNull Teleportable teleporter, @NotNull Target target,
-                         @NotNull String[] args) {
+                         boolean forceConfirm, @NotNull String[] args) {
         // Build and execute the teleport
         final TeleportBuilder builder = Teleport.builder(plugin)
                 .teleporter(teleporter)
@@ -110,6 +115,8 @@ public class TpCommand extends Command implements TabCompletable {
             }
             builder.executor(online);
         }
+
+        // Note: /tp command doesn't use economy confirmations, so confirm flag is just for API consistency
 
         // Execute teleport
         if (!builder.buildAndComplete(false, args)) {
@@ -199,6 +206,10 @@ public class TpCommand extends Command implements TabCompletable {
                         .sorted().collect(Collectors.toList());
             }
             default -> {
+                // Always suggest "confirm" as the last argument
+                if (!hasConfirmFlag(args)) {
+                    return List.of("confirm");
+                }
                 return List.of();
             }
         }

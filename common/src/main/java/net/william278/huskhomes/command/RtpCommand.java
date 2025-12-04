@@ -293,7 +293,7 @@ public class RtpCommand extends Command implements UserListTabCompletable {
                             .type(Teleport.Type.RANDOM_TELEPORT)
                             .actions(TransactionResolver.Action.RANDOM_TELEPORT)
                             .target(position.get());
-                    builder.buildAndComplete(executor.equals(teleporter), args);
+                    builder.buildAndComplete(false, args);
                 });
     }
 }

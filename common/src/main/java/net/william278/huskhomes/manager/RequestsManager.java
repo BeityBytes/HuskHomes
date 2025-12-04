@@ -275,10 +275,7 @@ public class RequestsManager {
             return;
         }
 
-        // Validate the economy check
-        if (accepted && !plugin.validateTransaction(recipient, TransactionResolver.Action.ACCEPT_TELEPORT_REQUEST)) {
-            return;
-        }
+        // No economy charge when accepting - the cost was already charged when sending the request
 
         handleRequestResponse(lastRequest.get(), recipient, accepted);
     }
@@ -327,17 +324,11 @@ public class RequestsManager {
 
             // If the request is a tpa here request, teleport the recipient to the sender
             if (accepted && request.getType() == TeleportRequest.Type.TPA_HERE) {
-                final TeleportBuilder builder = Teleport.builder(plugin)
-                        .actions(TransactionResolver.Action.ACCEPT_TELEPORT_REQUEST)
-                        .teleporter(recipient);
-
-                // Strict /tpahere requests will teleport to where the sender was when typing the command
-                if (plugin.getSettings().getGeneral().isStrictTpaHereRequests()) {
-                    builder.target(request.getRequesterPosition());
-                } else {
-                    builder.target(request.getRequesterName());
-                }
-                builder.buildAndComplete(true);
+                // Teleport without economy actions since cost was already charged when sending request
+                Teleport.builder(plugin)
+                        .teleporter(recipient)
+                        .target(request.getRequesterName())
+                        .buildAndComplete(true);
             }
         }));
     }
@@ -363,10 +354,10 @@ public class RequestsManager {
 
         // If the request is a tpa request, teleport the requester to the recipient
         if (accepted && (request.getType() == TeleportRequest.Type.TPA)) {
+            // Teleport without economy actions since cost was already charged when sending request
             Teleport.builder(plugin)
                     .teleporter(requester)
                     .target(request.getRecipientName())
-                    .actions(TransactionResolver.Action.ACCEPT_TELEPORT_REQUEST)
                     .buildAndComplete(true);
         }
     }

@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public class SpawnCommand extends Command {
+public class SpawnCommand extends Command implements TabCompletable {
 
     protected SpawnCommand(@NotNull HuskHomes plugin) {
         super(
@@ -45,6 +45,9 @@ public class SpawnCommand extends Command {
 
     @Override
     public void execute(@NotNull CommandUser executor, @NotNull String[] args) {
+        boolean forceConfirm = hasConfirmFlag(args);
+        String[] cleanArgs = removeConfirmFlag(args);
+
         final Optional<? extends Position> spawn = plugin.getSpawn();
         if (spawn.isEmpty()) {
             plugin.getLocales().getLocale("error_spawn_not_set")
@@ -52,18 +55,18 @@ public class SpawnCommand extends Command {
             return;
         }
 
-        final Optional<Teleportable> optionalTeleporter = resolveTeleporter(executor, args);
+        final Optional<Teleportable> optionalTeleporter = resolveTeleporter(executor, cleanArgs);
         if (optionalTeleporter.isEmpty()) {
             plugin.getLocales().getLocale("error_invalid_syntax", getUsage())
                     .ifPresent(executor::sendMessage);
             return;
         }
 
-        this.teleportToSpawn(optionalTeleporter.get(), executor, spawn.get(), args);
+        this.teleportToSpawn(optionalTeleporter.get(), executor, spawn.get(), forceConfirm, cleanArgs);
     }
 
     public void teleportToSpawn(@NotNull Teleportable teleporter, @NotNull CommandUser executor,
-                                @NotNull Position spawn, @NotNull String[] args) {
+                                @NotNull Position spawn, boolean forceConfirm, @NotNull String[] args) {
         if (!executor.equals(teleporter) && !executor.hasPermission(getPermission("other"))) {
             plugin.getLocales().getLocale("error_no_permission")
                     .ifPresent(executor::sendMessage);
@@ -75,7 +78,7 @@ public class SpawnCommand extends Command {
             plugin.getSettings().getEconomy().isEnabled() &&
             plugin.getTeleportConfirmations().map(teleportConfirmations ->
                 teleportConfirmations.requiresConfirmation(onlineExecutor, TransactionResolver.Action.SPAWN_TELEPORT)).orElse(false) &&
-            teleporter instanceof OnlineUser onlineTeleporter) {
+            teleporter instanceof OnlineUser onlineTeleporter && !forceConfirm) {
 
             // Send confirmation prompt for dynamic or static costs
             plugin.getTeleportConfirmations().ifPresent(teleportConfirmations -> {
@@ -96,11 +99,67 @@ public class SpawnCommand extends Command {
             return;
         }
 
+        // Show cost information if using forceConfirm and economy is enabled
+        if (forceConfirm && executor instanceof OnlineUser onlineExecutor &&
+            plugin.getSettings().getEconomy().isEnabled() &&
+            plugin.getTeleportConfirmations().map(confirmations ->
+                confirmations.requiresConfirmation(onlineExecutor, TransactionResolver.Action.SPAWN_TELEPORT)).orElse(false)) {
+
+            // Calculate and display cost information
+            final double cost;
+            if (plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(TransactionResolver.Action.SPAWN_TELEPORT)) {
+                cost = plugin.calculateDistanceBasedCost(TransactionResolver.Action.SPAWN_TELEPORT, onlineExecutor.getPosition(), spawn);
+            } else {
+                cost = plugin.getSettings().getEconomy().getCost(TransactionResolver.Action.SPAWN_TELEPORT).orElse(0.0);
+            }
+
+            if (cost > 0) {
+                String costInfo = plugin.getEconomyHook()
+                    .map(hook -> hook.formatCurrency(cost))
+                    .orElse(String.format("%.2f", cost));
+
+                plugin.getLocales().getLocale("teleport_cost_bypass", costInfo)
+                    .ifPresent(onlineExecutor::sendMessage);
+            }
+        }
+
         Teleport.builder(plugin)
                 .teleporter(teleporter)
                 .actions(TransactionResolver.Action.SPAWN_TELEPORT)
                 .target(spawn)
                 .buildAndComplete(teleporter.equals(executor), args);
+    }
+
+    // Legacy method for backward compatibility
+    public void teleportToSpawn(@NotNull Teleportable teleporter, @NotNull CommandUser executor,
+                                @NotNull Position spawn, @NotNull String[] args) {
+        teleportToSpawn(teleporter, executor, spawn, false, args);
+    }
+
+    @Override
+    @NotNull
+    public List<String> suggest(@NotNull CommandUser user, @NotNull String[] args) {
+        return switch (args.length) {
+            case 0, 1 -> {
+                if (hasConfirmFlag(args)) {
+                    yield List.of();
+                }
+                yield List.of("confirm");
+            }
+            case 2 -> {
+                if (hasConfirmFlag(args) || args[1].equalsIgnoreCase("confirm")) {
+                    yield List.of();
+                }
+                yield List.of("confirm");
+            }
+            default -> {
+                // Always suggest "confirm" as the last argument
+                if (!hasConfirmFlag(args)) {
+                    yield List.of("confirm");
+                }
+                yield List.of();
+            }
+        };
     }
 
 }

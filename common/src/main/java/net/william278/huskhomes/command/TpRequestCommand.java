@@ -66,21 +66,72 @@ public class TpRequestCommand extends InGameCommand implements UserListTabComple
             return;
         }
 
-        // Validate economy check
-        if (!plugin.validateTransaction(onlineUser, TransactionResolver.Action.SEND_TELEPORT_REQUEST)) {
+        // Find the target user for position calculation
+        Optional<OnlineUser> targetUser = plugin.getOnlineUser(target);
+        if (targetUser.isEmpty()) {
+            plugin.getLocales().getLocale("error_player_not_found", target)
+                    .ifPresent(onlineUser::sendMessage);
             return;
         }
 
-        try {
-            manager.sendTeleportRequest(onlineUser, target, requestType, () -> handleSuccessfulRequest(onlineUser, target));
-        } catch (IllegalArgumentException e) {
-            plugin.getLocales().getLocale("error_player_not_found", target)
-                    .ifPresent(onlineUser::sendMessage);
+        // Handle economy-based teleport confirmation if needed
+        if (plugin.getSettings().getEconomy().isEnabled() &&
+            plugin.getTeleportConfirmations().map(teleportConfirmations ->
+                teleportConfirmations.requiresConfirmation(onlineUser, TransactionResolver.Action.SEND_TELEPORT_REQUEST)).orElse(false)) {
+
+            // Validate funds before showing confirmation prompt
+            if (!plugin.validateTransaction(onlineUser, TransactionResolver.Action.SEND_TELEPORT_REQUEST,
+                    onlineUser.getPosition(), targetUser.get().getPosition())) {
+                return; // validateTransaction already shows "error_insufficient_funds" message
+            }
+
+            // Send confirmation prompt for distance-based costs
+            plugin.getTeleportConfirmations().ifPresent(teleportConfirmations -> {
+                teleportConfirmations.sendConfirmationPrompt(
+                        onlineUser,
+                        TransactionResolver.Action.SEND_TELEPORT_REQUEST,
+                        onlineUser.getPosition(),
+                        targetUser.get().getPosition(),
+                        () -> {
+                            // User confirmed, perform the actual transaction and send request
+                            try {
+                                // Perform the economy transaction
+                                plugin.performTransaction(onlineUser, TransactionResolver.Action.SEND_TELEPORT_REQUEST,
+                                        onlineUser.getPosition(), targetUser.get().getPosition());
+
+                                // Transaction successful, send the request
+                                manager.sendTeleportRequest(onlineUser, target, requestType, () -> handleSuccessfulRequest(onlineUser, target));
+                            } catch (IllegalArgumentException e) {
+                                plugin.getLocales().getLocale("error_player_not_found", target)
+                                        .ifPresent(onlineUser::sendMessage);
+                            }
+                        }
+                );
+            });
+        } else {
+            // Economy is disabled or no confirmation needed, but still validate economy if enabled
+            if (plugin.getSettings().getEconomy().isEnabled()) {
+                // Validate economy without confirmation (direct charge)
+                if (!plugin.validateTransaction(onlineUser, TransactionResolver.Action.SEND_TELEPORT_REQUEST,
+                        onlineUser.getPosition(), targetUser.get().getPosition())) {
+                    return; // validateTransaction already shows the error message
+                }
+                // Perform the transaction
+                plugin.performTransaction(onlineUser, TransactionResolver.Action.SEND_TELEPORT_REQUEST,
+                        onlineUser.getPosition(), targetUser.get().getPosition());
+            }
+
+            // Send the request
+            try {
+                manager.sendTeleportRequest(onlineUser, target, requestType, () -> handleSuccessfulRequest(onlineUser, target));
+            } catch (IllegalArgumentException e) {
+                plugin.getLocales().getLocale("error_player_not_found", target)
+                        .ifPresent(onlineUser::sendMessage);
+            }
         }
     }
 
     private void handleSuccessfulRequest(@NotNull OnlineUser onlineUser, @NotNull String target) {
-        plugin.performTransaction(onlineUser, TransactionResolver.Action.SEND_TELEPORT_REQUEST);
         plugin.getLocales()
                 .getLocale((requestType == TeleportRequest.Type.TPA ? "tpa" : "tpahere")
                         + "_request_sent", target)

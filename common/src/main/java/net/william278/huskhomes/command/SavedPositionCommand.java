@@ -184,6 +184,11 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
 
     protected void teleport(@NotNull CommandUser executor, @NotNull Teleportable teleporter, @NotNull T position,
                             @NotNull TransactionResolver.Action... actions) {
+        teleport(executor, teleporter, position, false, actions);
+    }
+
+    protected void teleport(@NotNull CommandUser executor, @NotNull Teleportable teleporter, @NotNull T position,
+                           boolean forceConfirm, @NotNull TransactionResolver.Action... actions) {
         if (!teleporter.equals(executor) && !executor.hasPermission(getPermission("other"))) {
             plugin.getLocales().getLocale("error_no_permission")
                     .ifPresent(executor::sendMessage);
@@ -201,7 +206,7 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
                     .map(confirmations -> confirmations.requiresConfirmation(onlineExecutor, actions[0]))
                     .orElse(false);
 
-                if (confirmationHandled) {
+                if (confirmationHandled && !forceConfirm) {
                     // Send confirmation prompt with interactive buttons
                     plugin.getTeleportConfirmations().get().sendConfirmationPrompt(
                             onlineExecutor,
@@ -225,7 +230,31 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
             }
         }
 
-        // Standard teleport without confirmation
+        // Show cost information if using forceConfirm and economy is enabled
+        if (forceConfirm && executor instanceof OnlineUser onlineExecutor &&
+            plugin.getSettings().getEconomy().isEnabled() &&
+            plugin.getTeleportConfirmations().map(confirmations ->
+                confirmations.requiresConfirmation(onlineExecutor, actions[0])).orElse(false)) {
+
+            // Calculate and display cost information
+            final double cost;
+            if (plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(actions[0])) {
+                cost = plugin.calculateDistanceBasedCost(actions[0], onlineExecutor.getPosition(), position);
+            } else {
+                cost = plugin.getSettings().getEconomy().getCost(actions[0]).orElse(0.0);
+            }
+
+            if (cost > 0) {
+                String costInfo = plugin.getEconomyHook()
+                    .map(hook -> hook.formatCurrency(cost))
+                    .orElse(String.format("%.2f", cost));
+
+                plugin.getLocales().getLocale("teleport_cost_bypass", costInfo)
+                    .ifPresent(onlineExecutor::sendMessage);
+            }
+        }
+
+        // Standard teleport without confirmation (or with forceConfirm flag)
         Teleport.builder(plugin)
                 .teleporter(teleporter)
                 .actions(actions)
@@ -265,7 +294,20 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
     private List<String> suggestWarp(@NotNull CommandUser executor, @NotNull String[] args) {
         return switch (args.length) {
             case 0, 1 -> plugin.getManager().warps().getUsableWarps(executor);
-            case 2 -> arguments.stream().filter(a -> executor.hasPermission(getPermission(a))).toList();
+            case 2 -> {
+                List<String> suggestions = new ArrayList<>();
+                suggestions.addAll(arguments.stream().filter(a -> executor.hasPermission(getPermission(a))).toList());
+                if (!args[1].equalsIgnoreCase("confirm")) {
+                    suggestions.add("confirm");
+                }
+                yield suggestions;
+            }
+            case 3 -> {
+                if (!args[2].equalsIgnoreCase("confirm")) {
+                    yield List.of("confirm");
+                }
+                yield List.of();
+            }
             default -> List.of();
         };
     }
@@ -283,7 +325,20 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
                 }
                 yield plugin.getManager().homes().getUserHomeIdentifiers();
             }
-            case 2 -> arguments.stream().filter(a -> executor.hasPermission(getPermission(a))).toList();
+            case 2 -> {
+                List<String> suggestions = new ArrayList<>();
+                suggestions.addAll(arguments.stream().filter(a -> executor.hasPermission(getPermission(a))).toList());
+                if (!args[1].equalsIgnoreCase("confirm")) {
+                    suggestions.add("confirm");
+                }
+                yield suggestions;
+            }
+            case 3 -> {
+                if (!args[2].equalsIgnoreCase("confirm")) {
+                    yield List.of("confirm");
+                }
+                yield List.of();
+            }
             default -> List.of();
         };
     }

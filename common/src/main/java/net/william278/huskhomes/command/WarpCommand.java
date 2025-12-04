@@ -54,6 +54,9 @@ public class WarpCommand extends SavedPositionCommand<Warp> {
 
     @Override
     public void execute(@NotNull CommandUser executor, @NotNull Warp warp, @NotNull String[] args) {
+        boolean forceConfirm = hasConfirmFlag(args);
+        String[] cleanArgs = removeConfirmFlag(args);
+
         // Check permission restricted warps
         if (plugin.getSettings().getGeneral().isPermissionRestrictWarps() && !warp.hasPermission(executor)) {
             plugin.getLocales().getLocale("error_no_permission")
@@ -61,13 +64,13 @@ public class WarpCommand extends SavedPositionCommand<Warp> {
             return;
         }
 
-        final Optional<Teleportable> optionalTeleporter = resolveTeleporter(executor, args);
+        final Optional<Teleportable> optionalTeleporter = resolveTeleporter(executor, cleanArgs);
         if (optionalTeleporter.isEmpty()) {
             plugin.getLocales().getLocale("error_invalid_syntax", getUsage())
                     .ifPresent(executor::sendMessage);
             return;
         }
 
-        this.teleport(executor, optionalTeleporter.get(), warp, TransactionResolver.Action.WARP_TELEPORT);
+        this.teleport(executor, optionalTeleporter.get(), warp, forceConfirm, TransactionResolver.Action.WARP_TELEPORT);
     }
 }

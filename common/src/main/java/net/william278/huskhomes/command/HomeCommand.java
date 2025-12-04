@@ -41,7 +41,10 @@ public abstract class HomeCommand extends SavedPositionCommand<Home> {
 
     @Override
     public void execute(@NotNull CommandUser executor, @NotNull Home home, @NotNull String[] args) {
-        final Optional<Teleportable> optionalTeleporter = resolveTeleporter(executor, args);
+        boolean forceConfirm = hasConfirmFlag(args);
+        String[] cleanArgs = removeConfirmFlag(args);
+
+        final Optional<Teleportable> optionalTeleporter = resolveTeleporter(executor, cleanArgs);
         if (optionalTeleporter.isEmpty()) {
             plugin.getLocales().getLocale("error_invalid_syntax", getUsage())
                     .ifPresent(executor::sendMessage);
@@ -57,7 +60,7 @@ public abstract class HomeCommand extends SavedPositionCommand<Home> {
         }
 
         this.teleport(
-                executor, optionalTeleporter.get(), home,
+                executor, optionalTeleporter.get(), home, forceConfirm,
                 (executor instanceof OnlineUser user && home.getOwner().equals(user)
                         ? TransactionResolver.Action.HOME_TELEPORT : TransactionResolver.Action.PUBLIC_HOME_TELEPORT)
         );
