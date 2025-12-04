@@ -80,6 +80,12 @@ public class SpawnCommand extends Command implements TabCompletable {
                 teleportConfirmations.requiresConfirmation(onlineExecutor, TransactionResolver.Action.SPAWN_TELEPORT)).orElse(false) &&
             teleporter instanceof OnlineUser onlineTeleporter && !forceConfirm) {
 
+            // Validate funds before showing confirmation prompt
+            if (!plugin.validateTransaction(onlineExecutor, TransactionResolver.Action.SPAWN_TELEPORT,
+                    onlineExecutor.getPosition(), spawn)) {
+                return; // validateTransaction already shows "error_insufficient_funds" message
+            }
+
             // Send confirmation prompt for dynamic or static costs
             plugin.getTeleportConfirmations().ifPresent(teleportConfirmations -> {
                 teleportConfirmations.sendConfirmationPrompt(

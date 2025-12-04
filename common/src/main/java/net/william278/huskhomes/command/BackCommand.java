@@ -62,6 +62,12 @@ public class BackCommand extends InGameCommand implements TabCompletable {
                 teleportConfirmations.requiresConfirmation(executor, TransactionResolver.Action.BACK_COMMAND)).orElse(false) &&
             !forceConfirm) {
 
+            // Validate funds before showing confirmation prompt
+            if (!plugin.validateTransaction(executor, TransactionResolver.Action.BACK_COMMAND,
+                    executor.getPosition(), lastPosition.get())) {
+                return; // validateTransaction already shows "error_insufficient_funds" message
+            }
+
             // Send confirmation prompt for dynamic or static costs
             plugin.getTeleportConfirmations().ifPresent(teleportConfirmations -> {
                 teleportConfirmations.sendConfirmationPrompt(
@@ -75,7 +81,7 @@ public class BackCommand extends InGameCommand implements TabCompletable {
                                     .target(lastPosition.get())
                                     .actions(TransactionResolver.Action.BACK_COMMAND)
                                     .type(Teleport.Type.BACK)
-                                    .buildAndComplete(true);
+                                    .buildAndComplete(false);
                         }
                 );
             });

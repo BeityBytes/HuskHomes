@@ -207,6 +207,12 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
                     .orElse(false);
 
                 if (confirmationHandled && !forceConfirm) {
+                    // Validate funds before showing confirmation prompt
+                    if (!plugin.validateTransaction(onlineExecutor, actions[0],
+                            onlineExecutor.getPosition(), position)) {
+                        return; // validateTransaction already shows "error_insufficient_funds" message
+                    }
+
                     // Send confirmation prompt with interactive buttons
                     plugin.getTeleportConfirmations().get().sendConfirmationPrompt(
                             onlineExecutor,
