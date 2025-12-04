@@ -202,7 +202,7 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
             teleporter instanceof OnlineUser onlineTeleporter) {
 
             try {
-                confirmationHandled = plugin.getTeleportConfirmations()
+                confirmationHandled = actions.length > 0 && plugin.getTeleportConfirmations()
                     .map(confirmations -> confirmations.requiresConfirmation(onlineExecutor, actions[0]))
                     .orElse(false);
 
@@ -239,6 +239,7 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
         // Show cost information if using forceConfirm and economy is enabled
         if (forceConfirm && executor instanceof OnlineUser onlineExecutor &&
             plugin.getSettings().getEconomy().isEnabled() &&
+            actions.length > 0 &&
             plugin.getTeleportConfirmations().map(confirmations ->
                 confirmations.requiresConfirmation(onlineExecutor, actions[0])).orElse(false)) {
 

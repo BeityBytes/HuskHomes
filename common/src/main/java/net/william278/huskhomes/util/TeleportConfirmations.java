@@ -142,19 +142,29 @@ public class TeleportConfirmations {
         }
 
         // Execute the teleport with proper transaction handling
+        boolean transactionSuccess;
         if (plugin.getSettings().getEconomy().isDistanceBasedCostingEnabled(confirmation.getAction())) {
             // Execute teleport with distance-based transaction
-            plugin.performTransaction(
+            transactionSuccess = plugin.performTransaction(
                     confirmation.getOnlineUser(),
                     confirmation.getAction(),
                     confirmation.getFromPosition(),
                     confirmation.getToPosition()
             );
-            confirmation.getTeleportTask().run();
         } else {
             // Execute teleport with standard transaction
-            plugin.performTransaction(confirmation.getOnlineUser(), confirmation.getAction());
+            transactionSuccess = plugin.performTransaction(confirmation.getOnlineUser(), confirmation.getAction());
+        }
+
+        // Only execute teleport if transaction was successful
+        if (transactionSuccess) {
             confirmation.getTeleportTask().run();
+        } else {
+            // Remove from pending and show insufficient funds message
+            pendingConfirmations.remove(user.getUuid());
+            plugin.getLocales().getLocale("error_insufficient_funds")
+                    .ifPresent(user::sendMessage);
+            return false;
         }
 
         // Remove from pending
@@ -240,6 +250,8 @@ public class TeleportConfirmations {
         String distanceText = "";
         if (distance >= 0) {
             distanceText = DistanceCalculator.formatDistance(distance);
+        } else if (DistanceCalculator.isInterDimensional(fromPosition, toPosition)) {
+            distanceText = "inter-dimensional";
         }
 
         // Send single combined confirmation message

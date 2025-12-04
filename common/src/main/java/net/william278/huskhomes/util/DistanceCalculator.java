@@ -169,7 +169,7 @@ public final class DistanceCalculator {
 
         // Calculate distance-based cost (for all teleports with distance)
         if (distance > 0) {
-            baseCost = calculateBaseCost(distance, costPerBlock, 0, maximumCost); // Don't apply minimum yet
+            baseCost = calculateBaseCost(distance, costPerBlock, 0, 0); // Don't apply min/max yet
         }
 
         // Add inter-dimensional fee if applicable
