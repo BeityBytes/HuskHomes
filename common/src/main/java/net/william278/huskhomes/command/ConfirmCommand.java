@@ -30,7 +30,7 @@ import java.util.Optional;
 public class ConfirmCommand extends Command {
 
     public ConfirmCommand(@NotNull HuskHomes plugin) {
-        super(List.of("confirm"), "", plugin);
+        super(List.of("confirmteleport"), "", plugin);
     }
 
     @Override

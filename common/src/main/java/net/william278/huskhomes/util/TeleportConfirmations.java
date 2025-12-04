@@ -242,22 +242,26 @@ public class TeleportConfirmations {
             distanceText = DistanceCalculator.formatDistance(distance);
         }
 
-        // Send main prompt with action and distance
-        plugin.getLocales().getLocale("teleport_confirmation_prompt",
-                        action.name().toLowerCase().replace("_", " "),
-                        distanceText)
-                .ifPresent(message -> user.sendMessage(message));
+        // Send single combined confirmation message
+        String teleportInfo = distanceText;
+        String costInfo;
 
-        // Send cost if applicable
-        if (!costText.isEmpty()) {
-            plugin.getLocales().getLocale("teleport_confirmation_cost", costText)
-                    .ifPresent(user::sendMessage);
+        // Format the cost properly for display
+        if (cost > 0) {
+            costInfo = plugin.getEconomyHook()
+                    .map(hook -> hook.formatCurrency(cost))
+                    .orElse(String.format("%.2f", cost));
+        } else {
+            costInfo = "free";
         }
 
+        plugin.getLocales().getLocale("teleport_confirmation_prompt",
+                        teleportInfo,
+                        costInfo)
+                .ifPresent(message -> user.sendMessage(message));
+
         // Send interactive buttons for confirmation
-        plugin.getLocales().getLocale("teleport_confirmation_instructions",
-                        action.name().toLowerCase().replace("_", " "),
-                        costText.isEmpty() ? "0.00" : costText)
+        plugin.getLocales().getLocale("teleport_confirmation_instructions")
                 .ifPresent(user::sendMessage);
     }
 

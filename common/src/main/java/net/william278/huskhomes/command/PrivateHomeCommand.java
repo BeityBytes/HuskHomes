@@ -26,6 +26,7 @@ import net.william278.huskhomes.user.OnlineUser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Optional;
 
 public class PrivateHomeCommand extends HomeCommand {
 
@@ -56,7 +57,18 @@ public class PrivateHomeCommand extends HomeCommand {
                     .ifPresent(command -> command.showHomeList(executor, user.getName(), 1));
             return;
         }
-        super.execute(executor, args);
+
+        // Replicate SavedPositionCommand.execute logic for home command
+        final Optional<String> name = parseStringArg(args, 0);
+        if (name.isEmpty()) {
+            plugin.getLocales().getLocale("error_invalid_syntax", getUsage())
+                    .ifPresent(executor::sendMessage);
+            return;
+        }
+
+        // Resolve the home using SavedPositionCommand logic and execute
+        final Optional<?> position = resolveHome(executor, name.get());
+        position.ifPresent(p -> super.execute(executor, (Home) p, removeFirstArg(args)));
     }
 
 }

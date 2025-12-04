@@ -484,7 +484,7 @@ public final class Settings {
             private boolean enabled = false;
 
             @Comment("Show confirmation only when cost is greater than 0")
-            private boolean onlyWhenCharged = true;
+            private boolean onlyWhenCharged = false;
 
             @Comment("Show calculated cost in confirmation message")
             private boolean showCost = true;

@@ -76,7 +76,7 @@ public abstract class SavedPositionCommand<T extends SavedPosition> extends Comm
 
     public abstract void execute(@NotNull CommandUser executor, @NotNull T position, @NotNull String[] arguments);
 
-    private Optional<Home> resolveHome(@NotNull CommandUser executor, @NotNull String homeName) {
+    protected Optional<Home> resolveHome(@NotNull CommandUser executor, @NotNull String homeName) {
         if (homeName.contains(Home.getDelimiter())) {
             return resolveDelimitedHome(executor, homeName);
         } else if (positionType == PositionCommandType.PUBLIC_HOME) {
