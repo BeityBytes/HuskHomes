@@ -27,9 +27,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 import java.util.Optional;
 
-public class ConfirmCommand extends Command {
+public class ConfirmTeleportCommand extends Command {
 
-    public ConfirmCommand(@NotNull HuskHomes plugin) {
+    public ConfirmTeleportCommand(@NotNull HuskHomes plugin) {
         super(List.of("confirmteleport"), "", plugin);
     }
 
