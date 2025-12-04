@@ -43,13 +43,7 @@ public class ConfirmTeleportCommand extends Command {
 
         // Check if user has a pending teleport confirmation
         plugin.getTeleportConfirmations().ifPresentOrElse(confirmations -> {
-            if (confirmations.confirmTeleport(user)) {
-                return;
-            }
-
-            // No pending confirmation
-            plugin.getLocales().getLocale("error_no_pending_teleport")
-                    .ifPresent(user::sendMessage);
+            confirmations.confirmTeleport(user);
         }, () -> {
             // Teleport confirmations not enabled
             plugin.getLocales().getLocale("error_teleport_confirmations_disabled")
